@@ -14,25 +14,11 @@
 
 .include alias.asm
 
-.base $8000
-
 .include bank_0.asm
-
-.base $8000
-
 .include bank_1.asm
-
-.base $8000
-
 .include bank_2.asm
-
-.base $C000
-
 .include bank_3.asm
 
-
-
 ; *** CHR ROM ***
-
 .incbin chr_rom.chr
 
