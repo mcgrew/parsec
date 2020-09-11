@@ -2,7 +2,7 @@
 
 echo -n "Compiling... "
 
-asm6f -q Project.asm Project.nes
+asm6f -q parsec.asm parsec.nes
 
 echo "Done."
 
