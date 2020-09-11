@@ -157,6 +157,16 @@ set_position:
     lda plume,x
     sta SPRITES+17
 
+    lda FRAMECOUNT
+    and #$08
+    bne +
+    lda #$00
+    beq ++
++   lda #$01
+++  sta SPRITES+14
+    sta SPRITES+18
+    rts
+
 read_joy:
     ; read the joypads
     ldx #$01
@@ -227,8 +237,17 @@ reset:
 
     ; Other things you can do between vblank waits are set up audio
     ; or set up other mapper registers.
-    lda #$d0
+
+    ; set up sprite 0 for split scrolling
+    lda #$c7
     sta SPRITES-4
+    lda #$88
+    sta SPRITES-3
+    lda #$20
+    sta SPRITES-2
+    lda #$fe
+    sta SPRITES-1
+
     ; init prng
     sta PRNG_SEED+1
    
@@ -243,8 +262,16 @@ reset:
     sta PPUCTRL     ; enable NMI
     lda #%00011010
     sta PPUMASK    ; enable rendering
--   jsr wait_for_nmi
-    jmp -
+
+--  bit PPUSTATUS
+    bvs --
+-   bit PPUSTATUS
+    bvc - 
+    lda #$00
+    sta PPUSCROLL
+    sta PPUSCROLL
+    jsr wait_for_nmi
+    jmp --
 
 load_pal:
     lda PPUSTATUS
