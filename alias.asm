@@ -29,16 +29,19 @@
         DMC_LEN    EQU $4013
         OAMDMA     EQU $4014
         SND_CHN    EQU $4015
-        JOY1       EQU $4016
+        JOY        EQU $4016
         JOY2       EQU $4017
 
         FRAMECOUNT EQU $7f
-        BUTTONS1   EQU $80
-        BUTTONS2   EQU $81
+        BUTTONS    EQU $80
 
-        SCROLLX    EQU $1e
+        PRNG_SEED  EQU $1b ; 2 bytes
+        SCROLLX    EQU $1d
         SCROLLY    EQU $1f
         PLAYERX    EQU $00
         PLAYERY    EQU $01
+        X_SUBPIXEL EQU $02
+        XSPEED     EQU $03
+        FUEL_PLUME EQU $04
         SPRITES    EQU $204
 

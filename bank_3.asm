@@ -8,50 +8,105 @@ nmi:
     sta PPUMASK     ; disable rendering
     jsr read_joy
 
-    lda #$00
-    sta SPRITES+2
-    sta SPRITES+6
-    sta SPRITES+10
-    ldx #$01
-    stx SPRITES+1
-    inx
-    stx SPRITES+5
-    inx
-    stx SPRITES+9
-
--   lda BUTTONS1
+-   lda BUTTONS
     and #%00001000  ; up
     beq +
-    dec SPRITES
-    dec SPRITES
-+   lda BUTTONS1
+    dec PLAYERY
+    dec PLAYERY
++   lda BUTTONS
     and #%00000100  ; down
     beq +
-    inc SPRITES
-    inc SPRITES
-+   lda BUTTONS1
+    inc PLAYERY
+    inc PLAYERY
+
++   lda #$04
+    sta FUEL_PLUME
+
+    lda BUTTONS
     and #%00000010  ; left
     beq +
-    dec SPRITES+3
-    dec SPRITES+3
-+   lda BUTTONS1
+    dec XSPEED
+    lda #$00
+    sta FUEL_PLUME
++   lda BUTTONS
     and #%00000001  ; right
     beq +
-    inc SPRITES+3
-    inc SPRITES+3
+    inc XSPEED
+    lda #$08
+    sta FUEL_PLUME
 
-+   lda SPRITES
-    sta SPRITES+4
-    sec
-    sbc #$08
-    sta SPRITES+8
++   lda XSPEED ; enforce speed limit
+    beq ++
+    bpl +
+    cmp #-$7e
+    bcs +
+    lda #-$7e
+    sta XSPEED
++   lda XSPEED
+    bmi ++
+    cmp #$7e
+    bcc ++
+    lda #$7e
+    sta XSPEED
 
-    lda SPRITES+3
-    sta SPRITES+11
-    clc
-    adc #$08
-    sta SPRITES+7
 
+++  clc ; set the new player position
+
+    lda XSPEED
+    and #$f8
+    bpl ++
+    rol
+    bcs +
+    dec PLAYERX
++   adc X_SUBPIXEL
+    sta X_SUBPIXEL
+    lda PLAYERX 
+    sbc #$00
+    sta PLAYERX
+    jmp +++
+++  rol
+    adc X_SUBPIXEL
+    sta X_SUBPIXEL
+    lda PLAYERX
+    adc #$00
+    sta PLAYERX
+
++++ ldx #$00
+    cmp bounds,x ; don't go off the edge
+    bcs +
+    lda bounds,x
+    sta PLAYERX
+    lda #$00
+    sta XSPEED
++   inx
+    cmp bounds,x
+    bcc +
+    lda bounds,x
+    sta PLAYERX
+    dec PLAYERX
+    lda #$00
+    sta XSPEED
+
++   inx
+    lda PLAYERY
+    cmp bounds,x
+    bcs +
+    lda bounds,x
+    sta PLAYERY
++   inx
+    cmp bounds,x
+    bcc +
+    lda bounds,x
+    sta PLAYERY
+    dec PLAYERY
+
++   jsr set_position
+
+    lda #$00
+    sta OAMADDR
+    sta OAMADDR
+    lda #SPRITES / $100
+    sta OAMDMA
 
     lda SCROLLX+1
     clc
@@ -64,27 +119,55 @@ nmi:
     lda SCROLLY
     sta PPUSCROLL
 
-    lda #$00
-    sta OAMADDR
-    sta OAMADDR
-    lda #SPRITES / $100
-    sta OAMDMA
-
     lda #%00011010
     sta PPUMASK     ; enable rendering
     rti
+
+set_position:
+    ldy #$05
+    ldx #$00
+-   lda PLAYERY
+    clc
+    adc player_sprite,x
+    sta SPRITES,x
+    inx
+    lda player_sprite,x
+    sta SPRITES,x
+    inx
+    lda player_sprite,x
+    sta SPRITES,x
+    inx
+    lda PLAYERX
+    clc
+    adc player_sprite,x
+    sta SPRITES,x
+    inx
+    dey
+    bne -
+
+    ldx FUEL_PLUME
+    lda FRAMECOUNT
+    and #$04
+    beq +
+    inx
++   lda plume,x
+    sta SPRITES+13
+    inx
+    inx
+    lda plume,x
+    sta SPRITES+17
 
 read_joy:
     ; read the joypads
     ldx #$01
 --  ldy #$08
     lda #$01
-    sta JOY1,x
+    sta JOY,x
     lsr a
-    sta JOY1,x
--   lda JOY1,x
+    sta JOY,x
+-   lda JOY,x
     lsr a
-    rol BUTTONS1,x
+    rol BUTTONS,x
     dey
     bne -
     dex
@@ -94,42 +177,33 @@ read_joy:
 reset:
     sei
     cld
-    lda #$00
-    sta PPUCTRL
+    ldx #$40
+    stx $4017
     ldx #$ff
     txs            ; set up the stack
--   lda PPUSTATUS
-    and #$80
-    beq -
--   lda PPUSTATUS
-    bpl -
-
-;   sei        ; ignore IRQs
-;   cld        ; disable decimal mode
-;   lda #$10
-;   sta PPUCTRL
-;   ldx #$ff
-;   txs
-;   ldx #$40
-;   stx $4017  ; disable APU frame IRQ
-;   ldx #$ff
-;   txs        ; Set up stack
-    inx        ; now X = 0
+    inx
     stx PPUCTRL   ; disable NMI
-;   stx PPUMASK   ; disable rendering
     stx DMC_FREQ  ; disable DMC IRQs
+    lda #$06
+    sta PPUMASK   ; disable rendering
 
     ; Optional (omitted):
     ; Set up mapper and jmp to further init code here.
+    ; init player position
+    lda #$40
+    sta PLAYERX
+    lda #$80
+    sta PLAYERY
 
     ; The vblank flag is in an unknown state after reset,
-    ; so it is cleared here to make sure that @vblankwait1
+    ; so it is cleared here to make sure that vblankwait1
     ; does not exit immediately.
     bit PPUSTATUS
 
     ; First of two waits for vertical blank to make sure that the
     ; PPU has stabilized
 
+; vblankwait1
 -   bit PPUSTATUS
     bpl -
 
@@ -155,17 +229,20 @@ reset:
     ; or set up other mapper registers.
     lda #$d0
     sta SPRITES-4
+    ; init prng
+    sta PRNG_SEED+1
    
-@vblankwait2:
-    bit $2002
-    bpl @vblankwait2
-    jsr load_pal
-    jsr load_text
+   ; wait for vblank
+-   bit $2002
+    bpl -
 
-    lda #%10010000
-    sta $2000       ; enable NMI
+    jsr load_pal
+    jsr load_bg
+
+    lda #%10000000
+    sta PPUCTRL     ; enable NMI
     lda #%00011010
-    sta $2001      ; enable rendering
+    sta PPUMASK    ; enable rendering
 -   jsr wait_for_nmi
     jmp -
 
@@ -184,24 +261,53 @@ load_pal:
     bne -
     rts
 
-load_text:
+load_bg:
     lda #$20
     sta PPUADDR
     lda #$00
     sta PPUADDR
-    ldx #$40
-    lda #$20
--   sta PPUDATA
-    dex
-    bne -
-    ldy #$04
+
+    ; create a random starfield
+    ldy #$03
 --  ldx #$00
--   lda bkground,x
-    sta PPUDATA
+-   jsr prng
+    lda PRNG_SEED
+    and #$fc
+    beq +
+    lda #$20
+    bne ++
++   lda PRNG_SEED
+    and #$01
+    ora #$80
+++  sta PPUDATA
     inx
     bne -
     dey
-    bpl --
+    bne --
+
+    ; create the surface
+    lda #$22
+    sta PPUADDR
+    lda #$e0
+    sta PPUADDR
+    ldx #$00
+-   lda surface_tiles,x
+    sta PPUDATA
+    inx
+    cpx #$c0
+    bne -
+
+    ; PPU attribute table
+    lda #$23
+    sta PPUADDR
+    lda #$c0
+    sta PPUADDR
+    ldx #$00
+-   lda ppu_attr,x
+    sta PPUDATA
+    inx
+    cpx #$40
+    bne -
     rts
 
 wait_for_nmi:
@@ -209,6 +315,26 @@ wait_for_nmi:
 -   bit PPUSTATUS
     bne -
     rts 
+
+prng:
+    pha
+    tya
+    pha
+    ldy #8     ; iteration count (8 bits)
+    lda PRNG_SEED
+
+-   asl        ; shift the register
+    rol PRNG_SEED+1
+    bcc +
+    eor #$39   ; apply XOR feedback whenever a 1 bit is shifted out
+
++   dey
+    bne -
+    sta PRNG_SEED
+    pla
+    tay
+    pla
+    rts
 
 .pad $fffa,$ff
 
