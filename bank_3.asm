@@ -63,7 +63,7 @@ reset:
     sta SPRITES-3
     lda #$20
     sta SPRITES-2
-    lda #$fe
+    lda #$f0
     sta SPRITES-1
 
     ; init prng
@@ -82,7 +82,9 @@ reset:
     sta PPUMASK    ; enable rendering
 
 game_loop:
-    inc FRAMECOUNT
+-   bit PPUSTATUS
+    bvs -
+    jsr set_scroll ; not sure why I need this here instead of in the NMI routine
     jsr read_joy
     jsr handle_buttons
     jsr check_speed
@@ -90,12 +92,10 @@ game_loop:
     jsr set_sprite_position
 
 -   bit PPUSTATUS
-    bvs -
--   bit PPUSTATUS
     bvc - 
     lda #$00
     sta PPUSCROLL
-    sta PPUSCROLL
+;     sta PPUSCROLL
     jsr wait_for_nmi
     jmp game_loop
 
@@ -155,14 +155,14 @@ handle_buttons:
     sta FUEL_PLUME
 +   lda BUTTONS
     and #%00000001  ; right
-    beq +
+    beq adjust_x_pos
     inc XSPEED
     lda #$08
     sta FUEL_PLUME
 
 adjust_x_pos:
     ; set the new x position
-+   lda XSPEED
+    lda XSPEED
     and #$f8
     bpl + 
     dec PLAYERX
@@ -195,7 +195,7 @@ check_speed:
 
 set_sprite_position:
 
-+   ldy #$05
+    ldy #$05
     ldx #$00
 -   lda PLAYERY
     clc
@@ -347,16 +347,22 @@ prng:
 
 irq:
 nmi:
+    inc FRAMECOUNT
     lda #$00
     sta PPUMASK     ; disable rendering
-;     jsr read_joy
 
 +   lda #$00
     sta OAMADDR
     sta OAMADDR
     lda #SPRITES / $100
     sta OAMDMA
+;     jsr set_scroll
+    lda #%00011010
+    sta PPUMASK     ; enable rendering
+    rti
 
+
+set_scroll:
     lda SCROLLX+1
     clc
     adc #$40
@@ -367,10 +373,7 @@ nmi:
     sta PPUSCROLL
     lda SCROLLY
     sta PPUSCROLL
-
-    lda #%00011010
-    sta PPUMASK     ; enable rendering
-    rti
+    rts
 
 
 .pad $fffa,$ff
