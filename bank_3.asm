@@ -1,77 +1,107 @@
 
 .base $C000
 
-irq:
-nmi:
+reset:
+    sei
+    cld
+    ldx #$40
+    stx $4017
+    ldx #$ff
+    txs            ; set up the stack
+    inx
+    stx PPUCTRL   ; disable NMI
+    stx DMC_FREQ  ; disable DMC IRQs
+    lda #$06
+    sta PPUMASK   ; disable rendering
+
+    ; Optional (omitted):
+    ; Set up mapper and jmp to further init code here.
+
+    ; The vblank flag is in an unknown state after reset,
+    ; so it is cleared here to make sure that vblankwait1
+    ; does not exit immediately.
+    bit PPUSTATUS
+
+    ; First of two waits for vertical blank to make sure that the
+    ; PPU has stabilized
+
+; vblankwait1
+-   bit PPUSTATUS
+    bpl -
+
+    ; We now have about 30,000 cycles to burn before the PPU stabilizes.
+    ; One thing we can do with this time is put RAM in a known state.
+    ; Here we fill it with $00, which matches what (say) a C compiler
+    ; expects for BSS.  Conveniently, X is still 0.
+    txa
+
+@clrmem:
+    sta $00,x
+    sta $100,x
+    sta $200,x
+    sta $300,x
+    sta $400,x
+    sta $500,x
+    sta $600,x
+    sta $700,x
+    inx
+    bne @clrmem
+
+    ; Other things you can do between vblank waits are set up audio
+    ; or set up other mapper registers.
+
+    ; init player position
+    lda #$40
+    sta PLAYERX
+    lda #$80
+    sta PLAYERY
+
+    ; set up sprite 0 for split scrolling
+    lda #$c7
+    sta SPRITES-4
+    lda #$88
+    sta SPRITES-3
+    lda #$20
+    sta SPRITES-2
+    lda #$fe
+    sta SPRITES-1
+
+    ; init prng
+    sta PRNG_SEED+1
+   
+   ; wait for vblank
+-   bit $2002
+    bpl -
+
+    jsr load_pal
+    jsr load_bg
+
+    lda #%10000000
+    sta PPUCTRL     ; enable NMI
+    lda #%00011010
+    sta PPUMASK    ; enable rendering
+
+game_loop:
     inc FRAMECOUNT
-    lda #$00
-    sta PPUMASK     ; disable rendering
     jsr read_joy
+    jsr handle_buttons
+    jsr check_speed
+    jsr check_bounds
+    jsr set_sprite_position
 
--   lda BUTTONS
-    and #%00001000  ; up
-    beq +
-    dec PLAYERY
-    dec PLAYERY
-+   lda BUTTONS
-    and #%00000100  ; down
-    beq +
-    inc PLAYERY
-    inc PLAYERY
-
-+   lda #$04
-    sta FUEL_PLUME
-
-    lda BUTTONS
-    and #%00000010  ; left
-    beq +
-    dec XSPEED
+-   bit PPUSTATUS
+    bvs -
+-   bit PPUSTATUS
+    bvc - 
     lda #$00
-    sta FUEL_PLUME
-+   lda BUTTONS
-    and #%00000001  ; right
-    beq +
-    inc XSPEED
-    lda #$08
-    sta FUEL_PLUME
+    sta PPUSCROLL
+    sta PPUSCROLL
+    jsr wait_for_nmi
+    jmp game_loop
 
-+   lda XSPEED ; enforce speed limit
-    beq ++
-    bpl +
-    cmp #-$7e
-    bcs +
-    lda #-$7e
-    sta XSPEED
-+   lda XSPEED
-    bmi ++
-    cmp #$7e
-    bcc ++
-    lda #$7e
-    sta XSPEED
-
-
-++  clc ; set the new player position
-
-    lda XSPEED
-    and #$f8
-    bpl ++
-    rol
-    bcs +
-    dec PLAYERX
-+   adc X_SUBPIXEL
-    sta X_SUBPIXEL
-    lda PLAYERX 
-    sbc #$00
-    sta PLAYERX
-    jmp +++
-++  rol
-    adc X_SUBPIXEL
-    sta X_SUBPIXEL
+check_bounds:
+    ldx #$00
     lda PLAYERX
-    adc #$00
-    sta PLAYERX
-
-+++ ldx #$00
     cmp bounds,x ; don't go off the edge
     bcs +
     lda bounds,x
@@ -79,6 +109,7 @@ nmi:
     lda #$00
     sta XSPEED
 +   inx
+    lda PLAYERX
     cmp bounds,x
     bcc +
     lda bounds,x
@@ -99,32 +130,72 @@ nmi:
     lda bounds,x
     sta PLAYERY
     dec PLAYERY
++   rts
 
-+   jsr set_position
+handle_buttons:
+-   lda BUTTONS
+    and #%00001000  ; up
+    beq +
+    dec PLAYERY
+    dec PLAYERY
++   lda BUTTONS
+    and #%00000100  ; down
+    beq +
+    inc PLAYERY
+    inc PLAYERY
 
++   lda #$04
+    sta FUEL_PLUME
+    lda BUTTONS
+    and #%00000010  ; left
+    beq +
+    dec XSPEED
+    dec XSPEED
     lda #$00
-    sta OAMADDR
-    sta OAMADDR
-    lda #SPRITES / $100
-    sta OAMDMA
+    sta FUEL_PLUME
++   lda BUTTONS
+    and #%00000001  ; right
+    beq +
+    inc XSPEED
+    lda #$08
+    sta FUEL_PLUME
 
-    lda SCROLLX+1
-    clc
-    adc #$40
-    sta SCROLLX+1
-    lda SCROLLX
+adjust_x_pos:
+    ; set the new x position
++   lda XSPEED
+    and #$f8
+    bpl + 
+    dec PLAYERX
++   asl 
+    adc X_SUBPIXEL
+    sta X_SUBPIXEL
+    lda PLAYERX
     adc #$00
-    sta SCROLLX
-    sta PPUSCROLL
-    lda SCROLLY
-    sta PPUSCROLL
+    sta PLAYERX
 
-    lda #%00011010
-    sta PPUMASK     ; enable rendering
-    rti
+    rts
 
-set_position:
-    ldy #$05
+check_speed:
++   lda XSPEED ; enforce speed limit
+    beq ++
+    bpl +
+    cmp #-$7e
+    bcs +
+    lda #-$7e
+    sta XSPEED
++   lda XSPEED
+    bmi ++
+    cmp #$7e
+    bcc ++
+    lda #$7e
+    sta XSPEED
+++  rts
+
+
+
+set_sprite_position:
+
++   ldy #$05
     ldx #$00
 -   lda PLAYERY
     clc
@@ -183,95 +254,6 @@ read_joy:
     dex
     bpl --
     rts
-
-reset:
-    sei
-    cld
-    ldx #$40
-    stx $4017
-    ldx #$ff
-    txs            ; set up the stack
-    inx
-    stx PPUCTRL   ; disable NMI
-    stx DMC_FREQ  ; disable DMC IRQs
-    lda #$06
-    sta PPUMASK   ; disable rendering
-
-    ; Optional (omitted):
-    ; Set up mapper and jmp to further init code here.
-    ; init player position
-    lda #$40
-    sta PLAYERX
-    lda #$80
-    sta PLAYERY
-
-    ; The vblank flag is in an unknown state after reset,
-    ; so it is cleared here to make sure that vblankwait1
-    ; does not exit immediately.
-    bit PPUSTATUS
-
-    ; First of two waits for vertical blank to make sure that the
-    ; PPU has stabilized
-
-; vblankwait1
--   bit PPUSTATUS
-    bpl -
-
-    ; We now have about 30,000 cycles to burn before the PPU stabilizes.
-    ; One thing we can do with this time is put RAM in a known state.
-    ; Here we fill it with $00, which matches what (say) a C compiler
-    ; expects for BSS.  Conveniently, X is still 0.
-    txa
-
-@clrmem:
-    sta $00,x
-    sta $100,x
-    sta $200,x
-    sta $300,x
-    sta $400,x
-    sta $500,x
-    sta $600,x
-    sta $700,x
-    inx
-    bne @clrmem
-
-    ; Other things you can do between vblank waits are set up audio
-    ; or set up other mapper registers.
-
-    ; set up sprite 0 for split scrolling
-    lda #$c7
-    sta SPRITES-4
-    lda #$88
-    sta SPRITES-3
-    lda #$20
-    sta SPRITES-2
-    lda #$fe
-    sta SPRITES-1
-
-    ; init prng
-    sta PRNG_SEED+1
-   
-   ; wait for vblank
--   bit $2002
-    bpl -
-
-    jsr load_pal
-    jsr load_bg
-
-    lda #%10000000
-    sta PPUCTRL     ; enable NMI
-    lda #%00011010
-    sta PPUMASK    ; enable rendering
-
---  bit PPUSTATUS
-    bvs --
--   bit PPUSTATUS
-    bvc - 
-    lda #$00
-    sta PPUSCROLL
-    sta PPUSCROLL
-    jsr wait_for_nmi
-    jmp --
 
 load_pal:
     lda PPUSTATUS
@@ -362,6 +344,34 @@ prng:
     tay
     pla
     rts
+
+irq:
+nmi:
+    lda #$00
+    sta PPUMASK     ; disable rendering
+;     jsr read_joy
+
++   lda #$00
+    sta OAMADDR
+    sta OAMADDR
+    lda #SPRITES / $100
+    sta OAMDMA
+
+    lda SCROLLX+1
+    clc
+    adc #$40
+    sta SCROLLX+1
+    lda SCROLLX
+    adc #$00
+    sta SCROLLX
+    sta PPUSCROLL
+    lda SCROLLY
+    sta PPUSCROLL
+
+    lda #%00011010
+    sta PPUMASK     ; enable rendering
+    rti
+
 
 .pad $fffa,$ff
 
