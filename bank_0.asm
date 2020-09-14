@@ -29,9 +29,12 @@ surface_tiles:
     .hex 88 88 88 88 88 88 88 88 88 88 88 88 88 88 88 88
 hud:
     .hex 88 88 88 88 88 88 88 88 88 88 88 88 88 88 88 88
-    .db "   FUEL",$0e,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$0f,"     000000 "
-    .db "   ",$03,$20,$03,$20,$03,$20,$03,$20,"                     "
-    .db "   ",$01,$02,$01,$02,$01,$02,$01,$02,"  LIFT 1  TOP 000000 "
+    .db "  FUEL"
+    .hex 0e 18 18 18 18 18 18 18 18 18 18 0f 20 89 8a 8a 8b
+    .db " 000000 "
+    .hex 20 20 20 03 20 03 20 03 20 03 20 20 20 20 20 20
+    .hex 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20
+    .db "   ",$01,$02,$01,$02,$01,$02,$01,$02," LIFT 1   TOP 000000 "
 
 ppu_attr:
     .hex ff ff ff ff ff ff ff ff
@@ -42,5 +45,26 @@ ppu_attr:
     .hex ff ff ff ff ff ff ff ff
     .hex af af af af af af af af
     .hex aa aa aa aa aa aa aa aa
+
+; APU period tables
+period_table_lo:
+    .hex f1 7f 13 ad 4d f3 9d 4c 00 b8 74 34 f8 bf 89 56
+    .hex 26 f9 ce a6 80 5c 3a 1a fb df c4 ab 93 7c 67 52
+    .hex 3f 2d 1c 0c fd ef e1 d5 c9 bd b3 a9 9f 96 8e 86
+    .hex 7e 77 70 6a 64 5e 59 54 4f 4b 46 42 3f 3b 38 34
+    .hex 31 2f 2c 29 27 25 23 21 1f 1d 1b 1a 18 17 15 14
+period_table_hi:
+    .hex 07 07 07 06 06 05 05 05 05 04 04 04 03 03 03 03
+    .hex 03 02 02 02 02 02 02 02 01 01 01 01 01 01 01 01
+    .hex 01 01 01 01 00 00 00 00 00 00 00 00 00 00 00 00
+    .hex 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+    .hex 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+; sounds
+; laser_snd:
+;     .hex 30 bf 10
+;
+; incoming_snd:
+;     .hex 30 bf 60 b0 bf 30
 
     .pad $c000,$ff

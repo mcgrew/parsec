@@ -21,8 +21,8 @@
         TRI_LO     EQU $400a
         TRI_HI     EQU $400b
         NOISE_VOL  EQU $400c
-        NOISE_LO   EQU $400e
-        NOISE_HI   EQU $400f
+        NOISE_PER  EQU $400e
+        NOISE_LEN  EQU $400f
         DMC_FREQ   EQU $4010
         DMC_RAW    EQU $4011
         DMC_START  EQU $4012
@@ -35,9 +35,11 @@
         FRAMECOUNT EQU $7f
         BUTTONS    EQU $80
 
+        TMP        EQU $10
         PRNG_SEED  EQU $1b ; 2 bytes
         SCROLLX    EQU $1d
-        SCROLLY    EQU $1f
+        SCROLLY    EQU #0  ; Y scroll is always 0
+        FUEL       EQU $20
         PLAYERX    EQU $00
         PLAYERY    EQU $01
         X_SUBPIXEL EQU $02

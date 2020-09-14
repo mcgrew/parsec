@@ -55,6 +55,10 @@ reset:
     sta PLAYERX
     lda #$80
     sta PLAYERY
+    lda #$50
+    sta FUEL
+    lda #$7F
+    sta FUEL+1
 
     ; set up sprite 0 for split scrolling
     lda #$c7
@@ -68,7 +72,9 @@ reset:
 
     ; init prng
     sta PRNG_SEED+1
-   
+
+    jsr init_apu
+
    ; wait for vblank
 -   bit $2002
     bpl -
@@ -89,15 +95,70 @@ game_loop:
     jsr handle_buttons
     jsr check_speed
     jsr check_bounds
+
+    ldx #$00       ; if we are on the left X boundary, fuel use should be medium
+    lda PLAYERX    ; otherwise the player can hold left to avoid using fuel
+    cmp bounds, x
+    bne +
+    lda #$04
+    sta FUEL_PLUME
+
++   jsr engine_sound
+    jsr consume_fuel
     jsr set_sprite_position
 
 -   bit PPUSTATUS
-    bvc - 
+    bvc -
     lda #$00
     sta PPUSCROLL
-;     sta PPUSCROLL
     jsr wait_for_nmi
     jmp game_loop
+
+consume_fuel:
+    lda FUEL ; don't consue fuel if there isn't any
+    beq +
+    lda FUEL_PLUME ; this is either 8, 4, or 0 depending on engine state
+    lsr            ; consume 2, 1, or 0 fuel
+    lsr
+    sta TMP
+    lda FUEL+1
+    sec
+    sbc TMP
+    sta FUEL+1
+    bvc +
+    dec FUEL
++   rts
+
+engine_sound:
+    lda FUEL_PLUME
++   ora #$30
+    sta NOISE_VOL
+
+    lda #$d
+    sta NOISE_PER
+
+    lda #$f0
+    sta NOISE_LEN
+    rts
+
+; fire:
+;     ldx $800
+;     bne +
+;     lda #$00
+;     sta SQ1_VOL
+;     rts
+;
+; +   lda period_table_hi,x
+;     sta SQ1_HI
+;
+;     lda period_table_lo,x
+;     sta SQ1_LO
+;
+;     lda #%10111111
+;     sta SQ1_VOL
+;     dec $10
+;     rts
+
 
 check_bounds:
     ldx #$00
@@ -164,9 +225,9 @@ adjust_x_pos:
     ; set the new x position
     lda XSPEED
     and #$f8
-    bpl + 
+    bpl +
     dec PLAYERX
-+   asl 
++   asl
     adc X_SUBPIXEL
     sta X_SUBPIXEL
     lda PLAYERX
@@ -323,7 +384,7 @@ wait_for_nmi:
     lda #$80
 -   bit PPUSTATUS
     bne -
-    rts 
+    rts
 
 prng:
     pha
@@ -354,9 +415,30 @@ nmi:
 +   lda #$00
     sta OAMADDR
     sta OAMADDR
-    lda #SPRITES / $100
+    lda #>SPRITES
     sta OAMDMA
+    lda FUEL
+    cmp #80
+    beq +
+    lda #$23
+    sta PPUADDR
+    lda FUEL ; set fuel meter
+    lsr
+    lsr
+    lsr
+    clc
+    adc #$47
+    sta PPUADDR
+    lda FUEL
+    and #$7
+    adc #$10
+    sta PPUDATA
+
 ;     jsr set_scroll
++   lda #$20
+    sta PPUADDR
+    lda #00
+    sta PPUADDR
     lda #%00011010
     sta PPUMASK     ; enable rendering
     rti
@@ -375,6 +457,27 @@ set_scroll:
     sta PPUSCROLL
     rts
 
+init_apu:
+    ; Init $4000-4013
+    ldy #$13
+-   lda @regs,y
+    sta SQ1_VOL,y
+    dey
+    bpl -
+
+    ; We have to skip over $4014 (OAMDMA)
+    lda #$0f
+    sta $4015
+    lda #$40
+    sta $4017
+    rts
+
+@regs:
+    .hex 30 08 00 00
+    .hex 30 08 00 00
+    .hex 80 00 00 00
+    .hex 30 00 00 00
+    .hex 00 00 00 00
 
 .pad $fffa,$ff
 
