@@ -3,8 +3,8 @@
 
 pal1:
     .hex 0f 11 16 15 ; Background colors                         ;;
-    .hex 0f 11 1B 11                                             ;;
-    .hex 0f 31 15 30                                             ;;
+    .hex 0f 30 0f 0f                                             ;;
+    .hex 0f 2c 15 30                                             ;;
     .hex 0f 28 30 30                                             ;;
     .hex 0f 1A 12 11 ; Sprite colors                             ;;
     .hex 0f 30 1B 1A                                             ;;
@@ -43,8 +43,8 @@ ppu_attr:
     .hex ff ff ff ff ff ff ff ff
     .hex ff ff ff ff ff ff ff ff
     .hex ff ff ff ff ff ff ff ff
-    .hex af af af af af af af af
-    .hex aa aa aa aa aa aa aa aa
+    .hex af af af af af af 5f 5f
+    .hex aa aa aa aa aa aa 55 55
 
 ; APU period tables
 period_table_lo:

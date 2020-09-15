@@ -57,6 +57,7 @@ reset:
     sta PLAYERY
     lda #$50
     sta FUEL
+    sta LAST_FUEL
     lda #$7F
     sta FUEL+1
 
@@ -116,8 +117,11 @@ game_loop:
 
 consume_fuel:
     lda FUEL ; don't consue fuel if there isn't any
-    beq +
-    lda FUEL_PLUME ; this is either 8, 4, or 0 depending on engine state
+    bne +
+    lda #$00
+    sta FUEL_PLUME
+    beq ++
++   lda FUEL_PLUME ; this is either 8, 4, or 0 depending on engine state
     lsr            ; consume 2, 1, or 0 fuel
     lsr
     sta TMP
@@ -125,9 +129,9 @@ consume_fuel:
     sec
     sbc TMP
     sta FUEL+1
-    bvc +
+    bvc ++
     dec FUEL
-+   rts
+++  rts
 
 engine_sound:
     lda FUEL_PLUME
@@ -418,8 +422,9 @@ nmi:
     lda #>SPRITES
     sta OAMDMA
     lda FUEL
-    cmp #80
+    cmp LAST_FUEL
     beq +
+    sta LAST_FUEL
     lda #$23
     sta PPUADDR
     lda FUEL ; set fuel meter

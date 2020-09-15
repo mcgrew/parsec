@@ -39,7 +39,8 @@
         PRNG_SEED  EQU $1b ; 2 bytes
         SCROLLX    EQU $1d
         SCROLLY    EQU #0  ; Y scroll is always 0
-        FUEL       EQU $20
+        FUEL       EQU $20 ; 2 bytes
+        LAST_FUEL  EQU $22
         PLAYERX    EQU $00
         PLAYERY    EQU $01
         X_SUBPIXEL EQU $02
