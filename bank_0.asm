@@ -34,17 +34,20 @@ hud:
     .db " 000000 "
     .hex 20 20 20 03 20 03 20 03 20 03 20 20 20 20 20 20
     .hex 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20
-    .db "   ",$01,$02,$01,$02,$01,$02,$01,$02," LIFT 1   TOP 000000 "
+    .db "   ",$01,$02,$01,$02,$01,$02,$01,$02," LIFT 1   TOP 000000  "
 
-ppu_attr:
-    .hex ff ff ff ff ff ff ff ff
-    .hex ff ff ff ff ff ff ff ff
-    .hex ff ff ff ff ff ff ff ff
-    .hex ff ff ff ff ff ff ff ff
-    .hex ff ff ff ff ff ff ff ff
-    .hex ff ff ff ff ff ff ff ff
-    .hex af af af af af af 5f 5f
-    .hex aa aa aa aa aa aa 55 55
+; ppu_attr:
+;     .hex ff ff ff ff ff ff ff ff
+;     .hex ff ff ff ff ff ff ff ff
+;     .hex ff ff ff ff ff ff ff ff
+;     .hex ff ff ff ff ff ff ff ff
+;     .hex ff ff ff ff ff ff ff ff
+;     .hex ff ff ff ff ff ff ff ff
+;     .hex af af af af af af 5f 5f
+;     .hex aa aa aa aa aa aa 55 55
+
+ppu_attr_sm:
+    .hex 30 ff 06 af 02 5f 06 aa 02 55 00
 
 ; APU period tables
 period_table_lo:
@@ -60,11 +63,13 @@ period_table_hi:
     .hex 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
     .hex 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
 
-; sounds
-; laser_snd:
-;     .hex 30 bf 10
-;
-; incoming_snd:
+; sfx(pulse) - channel, length, note, volume, length, note, volume, ...
+;    channel should be 00 (SQ1), 04 (SQ2), or 08 (TRI)
+; laser_sfx:
+;     .hex 04 10 30 bf 00
+
+; incoming_sfx:
 ;     .hex 30 bf 60 b0 bf 30
 
     .pad $c000,$ff
+

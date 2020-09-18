@@ -91,7 +91,6 @@ reset:
 game_loop:
 -   bit PPUSTATUS
     bvs -
-    jsr set_scroll ; not sure why I need this here instead of in the NMI routine
     jsr read_joy
     jsr handle_buttons
     jsr check_speed
@@ -104,15 +103,17 @@ game_loop:
     lda #$04
     sta FUEL_PLUME
 
-+   jsr engine_sound
-    jsr consume_fuel
++   jsr consume_fuel
+    jsr engine_sound
     jsr set_sprite_position
 
--   bit PPUSTATUS
+-   bit PPUSTATUS   ; wait for sprite 0 hit
     bvc -
     lda #$00
     sta PPUSCROLL
+    sta PPUSCROLL
     jsr wait_for_nmi
+    jsr set_scroll
     jmp game_loop
 
 consume_fuel:
@@ -145,54 +146,31 @@ engine_sound:
     sta NOISE_LEN
     rts
 
-; fire:
-;     ldx $800
-;     bne +
-;     lda #$00
-;     sta SQ1_VOL
-;     rts
-;
-; +   lda period_table_hi,x
-;     sta SQ1_HI
-;
-;     lda period_table_lo,x
-;     sta SQ1_LO
-;
-;     lda #%10111111
-;     sta SQ1_VOL
-;     dec $10
-;     rts
-
-
 check_bounds:
-    ldx #$00
     lda PLAYERX
-    cmp bounds,x ; don't go off the edge
+    cmp bounds ; don't go off the edge
     bcs +
-    lda bounds,x
+    lda bounds
     sta PLAYERX
     lda #$00
     sta XSPEED
-+   inx
-    lda PLAYERX
-    cmp bounds,x
++   lda PLAYERX
+    cmp bounds+1
     bcc +
-    lda bounds,x
+    lda bounds+1
     sta PLAYERX
     dec PLAYERX
     lda #$00
     sta XSPEED
 
-+   inx
-    lda PLAYERY
-    cmp bounds,x
++   lda PLAYERY
+    cmp bounds+2
     bcs +
-    lda bounds,x
+    lda bounds+2
     sta PLAYERY
-+   inx
-    cmp bounds,x
++   cmp bounds+3
     bcc +
-    lda bounds,x
+    lda bounds+3
     sta PLAYERY
     dec PLAYERY
 +   rts
@@ -304,20 +282,30 @@ set_sprite_position:
     rts
 
 read_joy:
-    ; read the joypads
-    ldx #$01
---  ldy #$08
-    lda #$01
-    sta JOY,x
-    lsr a
-    sta JOY,x
--   lda JOY,x
-    lsr a
-    rol BUTTONS,x
-    dey
+    jsr get_joy_buttons
+-   lda BUTTONS
+    pha
+    jsr get_joy_buttons
+    pla
+    cmp BUTTONS
     bne -
+    rts
+
+get_joy_buttons:
+    ldx #$01
+    stx JOY
     dex
-    bpl --
+    stx JOY
+    inx
+--  lda #$01
+    sta BUTTONS,x
+    lsr a        ; now A is 0
+-   lda JOY,x
+    lsr a	     ; bit 0 -> Carry
+    rol BUTTONS,x  ; Carry -> bit 0; bit 7 -> Carry
+    bcc -
+    dex
+    beq --
     rts
 
 load_pal:
@@ -342,7 +330,7 @@ load_bg:
     sta PPUADDR
 
     ; create a random starfield
-    ldy #$03
+    ldy #$02
 --  ldx #$00
 -   jsr prng
     lda PRNG_SEED
@@ -354,40 +342,52 @@ load_bg:
     and #$01
     ora #$80
 ++  sta PPUDATA
-    inx
+    dex
     bne -
     dey
+    bmi +    ; this will trigger on our final write loop
     bne --
+    ldx #$e0 ; start the final write loop
+    bne -
 
     ; create the surface
-    lda #$22
-    sta PPUADDR
-    lda #$e0
-    sta PPUADDR
-    ldx #$00
++   ldx #$00
 -   lda surface_tiles,x
     sta PPUDATA
     inx
     cpx #$c0
     bne -
-
-    ; PPU attribute table
-    lda #$23
-    sta PPUADDR
-    lda #$c0
-    sta PPUADDR
-    ldx #$00
--   lda ppu_attr,x
-    sta PPUDATA
-    inx
-    cpx #$40
+    ; fill in the rest with space
+    tax          ; A should be #$20, which is what we need in A and X
+-   sta PPUDATA
+    dex
     bne -
-    rts
+
+    ; PPU attribute table - $23c0
+    ldx #$00
+    ; uncompressed ppu attributes
+; -   lda ppu_attr,x
+;     sta PPUDATA
+;     inx
+;     cpx #$40
+;     bne -
+    ; compressed ppu attributes
+--  ldy ppu_attr_sm,x
+    beq +
+    inx
+    lda ppu_attr_sm,x
+    inx
+-   sta PPUDATA
+    dey
+    bne -
+    beq --
++   rts
 
 wait_for_nmi:
-    lda #$80
--   bit PPUSTATUS
-    bne -
+    lda #$00
+    sta VBLANK
+-   lda VBLANK
+    beq -
     rts
 
 prng:
@@ -412,9 +412,34 @@ prng:
 
 irq:
 nmi:
+    php
+    pha ; store the current register state on the stack
+    txa
+    pha
+    tya
+    pha
+    inc VBLANK
     inc FRAMECOUNT
     lda #$00
     sta PPUMASK     ; disable rendering
+
+IFDEF DEBUG
+    lda #$23
+    sta PPUADDR
+    lda #$98
+    sta PPUADDR
+    lda #$00
+    sta TMP+1
+    lda #BUTTONS
+    sta TMP
+    jsr show_mem
+    lda #PLAYERX
+    sta TMP
+    jsr show_mem
+    lda #PLAYERY
+    sta TMP
+    jsr show_mem
+ENDIF
 
 +   lda #$00
     sta OAMADDR
@@ -425,9 +450,9 @@ nmi:
     cmp LAST_FUEL
     beq +
     sta LAST_FUEL
-    lda #$23
+    lda #$23    ; update the fuel meter
     sta PPUADDR
-    lda FUEL ; set fuel meter
+    lda FUEL
     lsr
     lsr
     lsr
@@ -446,7 +471,37 @@ nmi:
     sta PPUADDR
     lda #%00011010
     sta PPUMASK     ; enable rendering
+    pla ; restore the register state from the stack
+    tay
+    pla
+    tax
+    pla
+    plp
     rti
+
+IFDEF DEBUG
+show_mem:
+    ldy #$00
+    lda (TMP),y
+    lsr
+    lsr
+    lsr
+    lsr
+    cmp #10
+    bmi +
+    clc
+    adc #$7
++   adc #$30
+    sta PPUDATA
+    lda (TMP),y
+    and #$f
+    cmp #10
+    bmi +
+    clc
+    adc #$7
++   adc #$30
+    sta PPUDATA
+ENDIF
 
 
 set_scroll:

@@ -33,13 +33,14 @@
         JOY2       EQU $4017
 
         FRAMECOUNT EQU $7f
-        BUTTONS    EQU $80
+        BUTTONS    EQU $80  ; 2 bytes
 
-        TMP        EQU $10
-        PRNG_SEED  EQU $1b ; 2 bytes
+        VBLANK     EQU $ff
+        TMP        EQU $10  ; 2 bytes
+        PRNG_SEED  EQU $1b  ; 2 bytes
         SCROLLX    EQU $1d
-        SCROLLY    EQU #0  ; Y scroll is always 0
-        FUEL       EQU $20 ; 2 bytes
+        SCROLLY    EQU #0   ; Y scroll is always 0
+        FUEL       EQU $20  ; 2 bytes
         LAST_FUEL  EQU $22
         PLAYERX    EQU $00
         PLAYERY    EQU $01

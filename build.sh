@@ -2,7 +2,7 @@
 
 echo -n "Compiling... "
 
-asm6f -q parsec.asm parsec.nes
+asm6f -q -dDEBUG parsec.asm parsec.nes
 
 echo "Done."
 
