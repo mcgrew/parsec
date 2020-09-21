@@ -89,8 +89,6 @@ reset:
     sta PPUMASK    ; enable rendering
 
 game_loop:
--   bit PPUSTATUS
-    bvs -
     jsr read_joy
     jsr handle_buttons
     jsr check_speed
@@ -107,6 +105,8 @@ game_loop:
     jsr engine_sound
     jsr set_sprite_position
 
+-   bit PPUSTATUS   ; wait for end of blank
+    bvs -
 -   bit PPUSTATUS   ; wait for sprite 0 hit
     bvc -
     lda #$00
