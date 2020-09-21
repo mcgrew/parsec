@@ -117,6 +117,11 @@ game_loop:
     jmp game_loop
 
 consume_fuel:
+IFDEF DEBUG
+    lda FUEL
+    cmp #$04
+    bmi ++
+ENDIF
     lda FUEL ; don't consue fuel if there isn't any
     bne +
     lda #$00
@@ -177,28 +182,34 @@ check_bounds:
 
 handle_buttons:
 -   lda BUTTONS
-    and #%00001000  ; up
+    and #$08        ; up
     beq +
     dec PLAYERY
+    lda BUTTONS
+    and #$40        ; B button - hold for slow up/down movement
+    bne +
     dec PLAYERY
 +   lda BUTTONS
-    and #%00000100  ; down
+    and #$04        ; down
     beq +
     inc PLAYERY
+    lda BUTTONS
+    and #$40        ; B button - hold for slow up/down movement
+    bne +
     inc PLAYERY
 
 +   lda #$04
     sta FUEL_PLUME
     lda BUTTONS
-    and #%00000010  ; left
+    and #$02        ; left
     beq +
     dec XSPEED
     dec XSPEED
     lda #$00
     sta FUEL_PLUME
 +   lda BUTTONS
-    and #%00000001  ; right
-    beq adjust_x_pos
+    and #$01        ; right
+    beq +
     inc XSPEED
     lda #$08
     sta FUEL_PLUME
