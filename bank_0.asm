@@ -12,11 +12,12 @@ pal1:
     .hex 0f 0f 15 14
 
 bounds:
-    .hex 20 e0 20 c0
+    .hex 20 e0 20 e0
 
 player_sprite:
-    .hex 00 01 00 00 00 02 00 08 f8 03 00 00
-    .hex 00 00 00 f0 00 00 00 f8
+    ; y_offset, sprite, attributes, x_offset, ...
+    .hex f8 01 00 00  f8 02 00 08  f0 03 00 00
+    .hex f8 00 00 f0  f8 00 00 f8
 
 plume:
     .hex 20 20 20 20 20 20 1a 1b 1c 1d 1e 1f

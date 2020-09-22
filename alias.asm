@@ -36,7 +36,7 @@
         BUTTONS    EQU $80  ; 2 bytes
 
         VBLANK     EQU $ff
-        TMP        EQU $10  ; 2 bytes
+        TMP        EQU $19  ; 2 bytes
         PRNG_SEED  EQU $1b  ; 2 bytes
         SCROLLX    EQU $1d
         SCROLLY    EQU #0   ; Y scroll is always 0
@@ -48,4 +48,5 @@
         XSPEED     EQU $03
         FUEL_PLUME EQU $04
         SPRITES    EQU $204
+        GROUND_Y   EQU $300
 

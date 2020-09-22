@@ -70,6 +70,7 @@ reset:
     sta SPRITES-2
     lda #$f0
     sta SPRITES-1
+    sta GROUND_Y
 
     ; init prng
     sta PRNG_SEED+1
@@ -101,7 +102,8 @@ game_loop:
     lda #$04
     sta FUEL_PLUME
 
-+   jsr consume_fuel
++   jsr check_collision
+    jsr consume_fuel
     jsr engine_sound
     jsr set_sprite_position
 
@@ -115,6 +117,15 @@ game_loop:
     jsr wait_for_nmi
     jsr set_scroll
     jmp game_loop
+
+check_collision:
+    lda GROUND_Y
+    cmp PLAYERY
+    bpl +
+    lda #$00        ; collision with ground!
+    sta FUEL
++   rts
+
 
 consume_fuel:
 IFDEF DEBUG
@@ -358,11 +369,17 @@ load_bg:
     dey
     bmi +    ; this will trigger on our final write loop
     bne --
-    ldx #$e0 ; start the final write loop
+    ldx #$a0 ; start the final write loop
+    bne -
+
++   lda #$40 ; create two lines of empty space
+    tax
+-   sta PPUDATA
+    dex
     bne -
 
     ; create the surface
-+   ldx #$00
+    ldx #$00
 -   lda surface_tiles,x
     sta PPUDATA
     inx
@@ -434,6 +451,70 @@ nmi:
     lda #$00
     sta PPUMASK     ; disable rendering
 
++   lda #$00
+    sta OAMADDR
+    sta OAMADDR
+    lda #>SPRITES
+    sta OAMDMA
+    lda FUEL
+    cmp LAST_FUEL
+    beq +
+;     sta LAST_FUEL
+    lda LAST_FUEL ; set up the x register to clear any extra fuel tiles
+    sbc FUEL
+    lsr
+    lsr
+    lsr
+    tax
+    lda #$23    ; update the fuel meter
+    sta PPUADDR
+    lda FUEL
+    lsr
+    lsr
+    lsr
+    clc
+    adc #$47
+    sta PPUADDR
+    lda FUEL
+    and #$7
+    adc #$10
+-   sta PPUDATA
+    lda #$10   ; clear any uncleared fuel tiles to the right
+    dex
+    bpl -
+
+    ; check Y position of the ground below the ship
++   lda #%10000100
+    sta PPUCTRL     ; set PPUADDR to increment by 32
+    lda #$22
+    sta TMP+1
+    lda PLAYERX
+    adc SCROLLX
+    lsr             ; divide by 8 to get the tile address
+    lsr
+    lsr
+    adc #$e0
+    bne +
+    lda #$e0
++   sta TMP
+    lda TMP+1
+    sta PPUADDR
+    lda TMP
+    sta PPUADDR
+    lda #22
+    sta GROUND_Y
+    lda PPUDATA     ; read once to update
+-   inc GROUND_Y
+    lda PPUDATA     ; read tile data from below the ship
+    cmp #$20
+    beq -
+    asl GROUND_Y
+    asl GROUND_Y
+    asl GROUND_Y
+    lda #%10000000
+    sta PPUCTRL     ; set PPUADDR to increment by 1
+
+
 IFDEF DEBUG
     lda #$23
     sta PPUADDR
@@ -450,33 +531,14 @@ IFDEF DEBUG
     lda #PLAYERY
     sta TMP
     jsr show_mem
+    lda #>GROUND_Y
+    sta TMP+1
+    lda #<GROUND_Y
+    sta TMP
+    jsr show_mem
 ENDIF
 
-+   lda #$00
-    sta OAMADDR
-    sta OAMADDR
-    lda #>SPRITES
-    sta OAMDMA
-    lda FUEL
-    cmp LAST_FUEL
-    beq +
-    sta LAST_FUEL
-    lda #$23    ; update the fuel meter
-    sta PPUADDR
-    lda FUEL
-    lsr
-    lsr
-    lsr
-    clc
-    adc #$47
-    sta PPUADDR
-    lda FUEL
-    and #$7
-    adc #$10
-    sta PPUDATA
-
-;     jsr set_scroll
-+   lda #$20
+    lda #$20
     sta PPUADDR
     lda #00
     sta PPUADDR
