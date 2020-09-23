@@ -32,11 +32,9 @@
         JOY        EQU $4016
         JOY2       EQU $4017
 
-        FRAMECOUNT EQU $7f
-        BUTTONS    EQU $80  ; 2 bytes
 
-        VBLANK     EQU $ff
-        TMP        EQU $19  ; 2 bytes
+        TMP        EQU $19
+        TMP2       EQU $1a
         PRNG_SEED  EQU $1b  ; 2 bytes
         SCROLLX    EQU $1d
         SCROLLY    EQU #0   ; Y scroll is always 0
@@ -47,6 +45,11 @@
         X_SUBPIXEL EQU $02
         XSPEED     EQU $03
         FUEL_PLUME EQU $04
+        LIVES      EQU $05
+        FRAMECOUNT EQU $7f
+        BUTTONS    EQU $80  ; 2 bytes
+        VBLANK     EQU $ff
+        SPRIT_BASE EQU $200
         SPRITES    EQU $204
         GROUND_Y   EQU $300
 

@@ -107,6 +107,12 @@ game_loop:
     jsr engine_sound
     jsr set_sprite_position
 
+    jsr handle_hud
+    jsr wait_for_nmi
+    jsr set_scroll
+    jmp game_loop
+
+handle_hud
 -   bit PPUSTATUS   ; wait for end of blank
     bvs -
 -   bit PPUSTATUS   ; wait for sprite 0 hit
@@ -114,18 +120,47 @@ game_loop:
     lda #$00
     sta PPUSCROLL
     sta PPUSCROLL
-    jsr wait_for_nmi
-    jsr set_scroll
-    jmp game_loop
+    rts
 
 check_collision:
-    lda GROUND_Y
-    cmp PLAYERY
+    lda PLAYERY
     bpl +
+    cmp GROUND_Y
+    bmi +
     lda #$00        ; collision with ground!
     sta FUEL
+    beq player_explode
 +   rts
 
+player_explode:
+    lda #$00
+    sta FRAMECOUNT
+    lda #$0f
+    sta NOISE_VOL
+    lda #$e
+    sta NOISE_PER
+    lda #$8
+    sta NOISE_LEN
+
+-   jsr handle_hud
+    jsr wait_for_nmi
+    jsr set_scroll
+    lda FRAMECOUNT
+    bne -
+
+    lda #$50
+    sta FUEL
+    lda #$7F
+    sta FUEL+1
+
+    lda #$40
+    sta PLAYERX
+    lda #$80
+    sta PLAYERY
+    lda #$00
+    sta XSPEED
+    rts
+    
 
 consume_fuel:
 IFDEF DEBUG
@@ -152,6 +187,7 @@ ENDIF
 
 engine_sound:
     lda FUEL_PLUME
+    lsr
 +   ora #$30
     sta NOISE_VOL
 
@@ -457,9 +493,25 @@ nmi:
     lda #>SPRITES
     sta OAMDMA
     lda FUEL
+    cmp #$50
+    bne +
+
     cmp LAST_FUEL
-    beq +
-;     sta LAST_FUEL
+    beq ++
+    sta LAST_FUEL
+    lda #$23      ; refill the fuel meter
+    sta PPUADDR
+    lda #$47
+    sta PPUADDR
+    lda #$18
+    ldx #10
+-   sta PPUDATA
+    dex
+    bne -
+    beq ++
+
++   cmp LAST_FUEL
+    beq ++
     lda LAST_FUEL ; set up the x register to clear any extra fuel tiles
     sbc FUEL
     lsr
@@ -482,12 +534,14 @@ nmi:
     lda #$10   ; clear any uncleared fuel tiles to the right
     dex
     bpl -
+    lda FUEL
+    sta LAST_FUEL
 
     ; check Y position of the ground below the ship
-+   lda #%10000100
+++  lda #%10000100
     sta PPUCTRL     ; set PPUADDR to increment by 32
     lda #$22
-    sta TMP+1
+    sta TMP2
     lda PLAYERX
     adc SCROLLX
     lsr             ; divide by 8 to get the tile address
@@ -497,7 +551,7 @@ nmi:
     bne +
     lda #$e0
 +   sta TMP
-    lda TMP+1
+    lda TMP2
     sta PPUADDR
     lda TMP
     sta PPUADDR
@@ -521,7 +575,7 @@ IFDEF DEBUG
     lda #$98
     sta PPUADDR
     lda #$00
-    sta TMP+1
+    sta TMP2
     lda #BUTTONS
     sta TMP
     jsr show_mem
@@ -532,7 +586,7 @@ IFDEF DEBUG
     sta TMP
     jsr show_mem
     lda #>GROUND_Y
-    sta TMP+1
+    sta TMP2
     lda #<GROUND_Y
     sta TMP
     jsr show_mem
@@ -574,6 +628,7 @@ show_mem:
     adc #$7
 +   adc #$30
     sta PPUDATA
+    rts
 ENDIF
 
 
@@ -600,7 +655,7 @@ init_apu:
 
     ; We have to skip over $4014 (OAMDMA)
     lda #$0f
-    sta $4015
+    sta SND_CHN
     lda #$40
     sta $4017
     rts
