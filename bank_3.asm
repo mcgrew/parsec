@@ -63,13 +63,13 @@ reset:
 
     ; set up sprite 0 for split scrolling
     lda #$c7
-    sta SPRITES-4
+    sta SPRITES
     lda #$88
-    sta SPRITES-3
+    sta SPRITES+1
     lda #$20
-    sta SPRITES-2
+    sta SPRITES+2
     lda #$f0
-    sta SPRITES-1
+    sta SPRITES+3
     sta GROUND_Y
 
     ; init prng
@@ -135,18 +135,63 @@ check_collision:
 player_explode:
     lda #$00
     sta FRAMECOUNT
-    lda #$0f
+    lda #$f
     sta NOISE_VOL
     lda #$e
     sta NOISE_PER
     lda #$8
     sta NOISE_LEN
 
--   jsr handle_hud
+explode_loop:
+    ldx #4             ; load the explosion sprites
+    lda FRAMECOUNT
+    lsr
+    lsr
+    sta TMP
+-   lda PLAYERY
+;     pha
+;     txa
+;     and #$3
+;     beq +
+;     pla
+;     clc
+;     adc TMP
+; +   txa
+;     and #$3
+
+
+    sta SPRITES,x
+    inx
+    lda #$8c
+    sta SPRITES,x
+    inx
+    lda #0
+    sta SPRITES,x
+    inx
+    lda PLAYERX
+    cpx #16
+    bpl +
+    sec
+    sbc TMP
+    cpx #28
+    bmi +
+    clc
+    adc TMP
++   sta SPRITES,x
+    inx
+    cpx #40
+    bne -
+
+    lda #0
+-   sta SPRITES,x
+    inx
+    bne -
+
+    jsr handle_hud
     jsr wait_for_nmi
     jsr set_scroll
     lda FRAMECOUNT
-    bne -
+    bne explode_loop
 
     lda #$50
     sta FUEL
@@ -159,8 +204,15 @@ player_explode:
     sta PLAYERY
     lda #$00
     sta XSPEED
+    ; intentional fall-through
+
+clear_sprites:
+    ldx #4
+    lda #0
+-   sta SPRITES,x
+    inx
+    bne -
     rts
-    
 
 consume_fuel:
 IFDEF DEBUG
@@ -261,6 +313,13 @@ handle_buttons:
     lda #$08
     sta FUEL_PLUME
 
++   lda BUTTONS
+    and #$20        ; select
+    beq adjust_x_pos
+    jmp player_explode
+;     jsr release_enemy
+
+
 adjust_x_pos:
     ; set the new x position
     lda XSPEED
@@ -301,18 +360,18 @@ set_sprite_position:
 -   lda PLAYERY
     clc
     adc player_sprite,x
-    sta SPRITES,x
+    sta SPRITES+4,x
     inx
     lda player_sprite,x
-    sta SPRITES,x
+    sta SPRITES+4,x
     inx
     lda player_sprite,x
-    sta SPRITES,x
+    sta SPRITES+4,x
     inx
     lda PLAYERX
     clc
     adc player_sprite,x
-    sta SPRITES,x
+    sta SPRITES+4,x
     inx
     dey
     bne -
@@ -323,11 +382,11 @@ set_sprite_position:
     beq +
     inx
 +   lda plume,x
-    sta SPRITES+13
+    sta SPRITES+17
     inx
     inx
     lda plume,x
-    sta SPRITES+17
+    sta SPRITES+21
 
     lda FRAMECOUNT
     and #$08
@@ -335,8 +394,8 @@ set_sprite_position:
     lda #$00
     beq ++
 +   lda #$01
-++  sta SPRITES+14
-    sta SPRITES+18
+++  sta SPRITES+18
+    sta SPRITES+22
     rts
 
 read_joy:

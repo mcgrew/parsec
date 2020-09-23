@@ -49,7 +49,6 @@
         FRAMECOUNT EQU $7f
         BUTTONS    EQU $80  ; 2 bytes
         VBLANK     EQU $ff
-        SPRIT_BASE EQU $200
-        SPRITES    EQU $204
+        SPRITES    EQU $200
         GROUND_Y   EQU $300
 
