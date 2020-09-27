@@ -103,7 +103,15 @@ game_loop:
     sta FUEL_PLUME
 
 +   jsr check_collision
-    jsr consume_fuel
+
+    lda HEAT       ; explode if the ship is too hot
+    cmp #$e0
+    bcc +
+    lda #$00
+    sta HEAT
+    jsr player_explode
+
++   jsr consume_fuel
     jsr engine_sound
     jsr set_sprite_position
 
@@ -133,7 +141,7 @@ check_collision:
 +   rts
 
 player_explode:
-    lda #$00
+    lda #$60
     sta FRAMECOUNT
     lda #$f
     sta NOISE_VOL
@@ -142,56 +150,98 @@ player_explode:
     lda #$8
     sta NOISE_LEN
 
-explode_loop:
-    ldx #4             ; load the explosion sprites
-    lda FRAMECOUNT
-    lsr
-    lsr
-    sta TMP
+    ldx #4
 -   lda PLAYERY
-;     pha
-;     txa
-;     and #$3
-;     beq +
-;     pla
-;     clc
-;     adc TMP
-; +   txa
-;     and #$3
-
-
     sta SPRITES,x
     inx
-    lda #$8c
-    sta SPRITES,x
     inx
     lda #0
     sta SPRITES,x
     inx
     lda PLAYERX
-    cpx #16
-    bpl +
-    sec
-    sbc TMP
-    cpx #28
-    bmi +
-    clc
-    adc TMP
-+   sta SPRITES,x
+    sta SPRITES,x
     inx
-    cpx #40
+    cpx #104
     bne -
+    ldx #104
+    jsr clear_sprites_from_x
 
-    lda #0
--   sta SPRITES,x
-    inx
-    bne -
-
+explode_loop:
     jsr handle_hud
     jsr wait_for_nmi
     jsr set_scroll
+
+    ldx #4             ; load the explosion sprites
     lda FRAMECOUNT
+    lsr
+    lsr
+    lsr
+    lsr
+    lsr
+    clc
+    adc #$90
+-   inx
+    sta SPRITES,x
+    inx
+    inx
+    inx
+    cpx #104
+    bne -
+
+    lda FRAMECOUNT
+    and #$0f
     bne explode_loop
+    dec SPRITES+4   ; adjust y values of first row
+    dec SPRITES+8
+    dec SPRITES+12
+    dec SPRITES+16
+    dec SPRITES+20
+    inc SPRITES+84  ; adjust y values of last row
+    inc SPRITES+88
+    inc SPRITES+92
+    inc SPRITES+96
+    inc SPRITES+100
+
+    dec SPRITES+7   ; adjust x values of first column
+    dec SPRITES+27
+    dec SPRITES+47
+    dec SPRITES+67
+    dec SPRITES+87
+    inc SPRITES+23  ; adjust x values of last column
+    inc SPRITES+43
+    inc SPRITES+63
+    inc SPRITES+93
+    inc SPRITES+103
+
+    lda FRAMECOUNT
+    and #$1f
+    bne explode_loop
+    dec SPRITES+24  ; adjust y values of second row
+    dec SPRITES+28
+    dec SPRITES+32
+    dec SPRITES+36
+    dec SPRITES+40
+    inc SPRITES+64  ; adjust y values of fourth row
+    inc SPRITES+68
+    inc SPRITES+72
+    inc SPRITES+76
+    inc SPRITES+80
+
+    dec SPRITES+11  ; adjust x values of second column
+    dec SPRITES+31
+    dec SPRITES+51
+    dec SPRITES+71
+    dec SPRITES+91
+    inc SPRITES+19  ; adjust x values of fourth column
+    inc SPRITES+39
+    inc SPRITES+59
+    inc SPRITES+79
+    inc SPRITES+99
+
+    lda FRAMECOUNT
+    beq +
+    jmp explode_loop
++
 
     lda #$50
     sta FUEL
@@ -208,6 +258,7 @@ explode_loop:
 
 clear_sprites:
     ldx #4
+clear_sprites_from_x:
     lda #0
 -   sta SPRITES,x
     inx
@@ -313,7 +364,21 @@ handle_buttons:
     lda #$08
     sta FUEL_PLUME
 
-+   lda BUTTONS
++   ldx HEAT
+    lda BUTTONS
+    and #$80
+    beq +
+    lda BUTTONS     ; only increase the heat if the player is moving
+    and #$0f
+    beq + 
+    inx
+    inx
++   cpx #$00
+    beq +
+    dex
++   stx HEAT
+
+    lda BUTTONS
     and #$20        ; select
     beq adjust_x_pos
     jmp player_explode
@@ -627,6 +692,21 @@ nmi:
     lda #%10000000
     sta PPUCTRL     ; set PPUADDR to increment by 1
 
+    ldx #$1a        ; green
+    lda HEAT        ; flash the ship if the laser is hot
+    cmp #$40
+    bcc +
+    lda FRAMECOUNT
+    and #$10
+    beq +
+    ldx #$15        ; red
+
++   lda #$3f        ; overwrite the ship color (palette 4, byte 1)
+    sta PPUADDR
+    lda #$11
+    sta PPUADDR
+    stx PPUDATA
+
 
 IFDEF DEBUG
     lda #$23
@@ -651,7 +731,7 @@ IFDEF DEBUG
     jsr show_mem
 ENDIF
 
-    lda #$20
+    lda #$20        ; reset the PPU address
     sta PPUADDR
     lda #00
     sta PPUADDR

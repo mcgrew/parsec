@@ -46,6 +46,7 @@
         XSPEED     EQU $03
         FUEL_PLUME EQU $04
         LIVES      EQU $05
+        HEAT       EQU $06
         FRAMECOUNT EQU $7f
         BUTTONS    EQU $80  ; 2 bytes
         VBLANK     EQU $ff
