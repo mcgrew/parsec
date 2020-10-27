@@ -75,7 +75,7 @@ reset:
     ; init prng
     sta PRNG_SEED+1
 
-    jsr init_apu
+;     jsr init_apu
 
    ; wait for vblank
 -   bit $2002
@@ -89,8 +89,15 @@ reset:
     lda #%00011010
     sta PPUMASK    ; enable rendering
 
+    jsr famistudio_init
+    lda #1
+    ldx #<sounds
+    ldy #>sounds
+    jsr famistudio_sfx_init
+
 game_loop:
     jsr read_joy
+    jsr handle_sfx
     jsr handle_buttons
     jsr check_speed
     jsr check_bounds
@@ -109,15 +116,16 @@ game_loop:
     bcc +
     lda #$00
     sta HEAT
-    jsr player_explode
+;     jsr player_explode
 
 +   jsr consume_fuel
-    jsr engine_sound
+;     jsr engine_sound
     jsr set_sprite_position
 
     jsr handle_hud
     jsr wait_for_nmi
     jsr set_scroll
+    jsr famistudio_update
     jmp game_loop
 
 handle_hud
@@ -140,15 +148,27 @@ check_collision:
     beq player_explode
 +   rts
 
+handle_sfx:
++   lda FUEL_PLUME
+    lsr
+    lsr
+    beq +
+    ldx #FAMISTUDIO_SFX_CH3
+    jsr famistudio_sfx_play
++   rts 
+
 player_explode:
-    lda #$60
-    sta FRAMECOUNT
-    lda #$f
-    sta NOISE_VOL
-    lda #$e
-    sta NOISE_PER
-    lda #$8
-    sta NOISE_LEN
+    lda SFX_EXPLODE
+    ldx #FAMISTUDIO_SFX_CH3
+    jsr famistudio_sfx_play
+;     lda #$60
+;     sta FRAMECOUNT
+;     lda #$f
+;     sta NOISE_VOL
+;     lda #$e
+;     sta NOISE_PER
+;     lda #$8
+;     sta NOISE_LEN
 
     ldx #4
 -   lda PLAYERY
@@ -169,6 +189,7 @@ player_explode:
 explode_loop:
     jsr handle_hud
     jsr wait_for_nmi
+    jsr famistudio_update
     jsr set_scroll
 
     ldx #4             ; load the explosion sprites
@@ -332,54 +353,75 @@ check_bounds:
 
 handle_buttons:
 -   lda BUTTONS
-    and #$08        ; up
+    and BTN_UP
     beq +
     dec PLAYERY
     lda BUTTONS
-    and #$40        ; B button - hold for slow up/down movement
+    and BTN_B       ; hold for slow up/down movement
     bne +
     dec PLAYERY
 +   lda BUTTONS
-    and #$04        ; down
+    and BTN_DOWN
     beq +
     inc PLAYERY
     lda BUTTONS
-    and #$40        ; B button - hold for slow up/down movement
+    and BTN_B       ; hold for slow up/down movement
     bne +
     inc PLAYERY
 
 +   lda #$04
     sta FUEL_PLUME
     lda BUTTONS
-    and #$02        ; left
+    and BTN_LEFT
     beq +
     dec XSPEED
     dec XSPEED
     lda #$00
     sta FUEL_PLUME
 +   lda BUTTONS
-    and #$01        ; right
+    and BTN_RIGHT
     beq +
     inc XSPEED
     lda #$08
     sta FUEL_PLUME
 
++   lda BUTTONS      ; set the laser frame to $ff (invalid) if A is not pressed
+    and BTN_A
+    bne +
+    lda #$ff
+    sta LASER_FRAME
+
 +   ldx HEAT
     lda BUTTONS
-    and #$80
-    beq +
+    and BTN_A
+    beq ++
+    lda LASER_FRAME ; set the laser frame if it is currently invalid and A is
+    cmp $ff         ; pressed
+    bne +
+    lda FRAMECOUNT
+    and #$07
+    sta LASER_FRAME
++   lda FRAMECOUNT
+    and #$07
+    bne +
+    txa
+    pha
+    lda SFX_LASER
+    ldx #FAMISTUDIO_SFX_CH0
+    jsr famistudio_sfx_play
+    pla
+    tax
     lda BUTTONS     ; only increase the heat if the player is moving
     and #$0f
-    beq + 
+    beq ++ 
     inx
     inx
-+   cpx #$00
+++  cpx #$00
     beq +
     dex
 +   stx HEAT
-
     lda BUTTONS
-    and #$20        ; select
+    and BTN_SELECT
     beq adjust_x_pos
     jmp player_explode
 ;     jsr release_enemy
@@ -398,6 +440,25 @@ adjust_x_pos:
     adc #$00
     sta PLAYERX
 
+    rts
+
+update_enemy_pos:
+    ldx #$00
+    rts
+
+release_enemy:
+    ldx NEXT_ENEMY
+    lda enemy_start_x,x
+    sta ENEMY_POSX,x
+    inx
+    lda enemy_start_y,x
+    sta ENEMY_POSY,x
+    lda initial_spd_x,x
+    sta ENEMY_SPDX,x
+    lda initial_spd_y,x
+    sta ENEMY_SPDY,x
+    inx
+    stx NEXT_ENEMY
     rts
 
 check_speed:
@@ -805,6 +866,7 @@ init_apu:
     .hex 80 00 00 00
     .hex 30 00 00 00
     .hex 00 00 00 00
+
 
 .pad $fffa,$ff
 

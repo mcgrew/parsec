@@ -19,6 +19,9 @@ player_sprite:
     .hex f8 01 00 00  f8 02 00 08  f0 03 00 00
     .hex f8 00 00 f0  f8 00 00 f8
 
+explode_animation:
+    .hex 00
+
 plume:
     .hex 20 20 20 20 20 20 1a 1b 1c 1d 1e 1f
 
@@ -64,13 +67,21 @@ period_table_hi:
     .hex 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
     .hex 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
 
-; sfx(pulse) - channel, length, note, volume, length, note, volume, ...
-;    channel should be 00 (SQ1), 04 (SQ2), or 08 (TRI)
-; laser_sfx:
-;     .hex 04 10 30 bf 00
+enemy_start_x:
+    .hex 90 90 90 90 90 90
 
-; incoming_sfx:
-;     .hex 30 bf 60 b0 bf 30
+enemy_start_y:
+    .hex 00 00 00 00 00 00
 
+initial_spd_x:
+    .hex 00 00 00 00 00 00
+
+initial_spd_y:
+    .hex 02 04 06 08 10 12
+
+.include famistudio_conf.asm
+.include famistudio_asm6.asm
+.include sfx.asm
+  
     .pad $c000,$ff
 
