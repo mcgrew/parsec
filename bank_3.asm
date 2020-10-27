@@ -116,10 +116,9 @@ game_loop:
     bcc +
     lda #$00
     sta HEAT
-;     jsr player_explode
+    jsr player_explode
 
 +   jsr consume_fuel
-;     jsr engine_sound
     jsr set_sprite_position
 
     jsr handle_hud
@@ -161,14 +160,6 @@ player_explode:
     lda SFX_EXPLODE
     ldx #FAMISTUDIO_SFX_CH3
     jsr famistudio_sfx_play
-;     lda #$60
-;     sta FRAMECOUNT
-;     lda #$f
-;     sta NOISE_VOL
-;     lda #$e
-;     sta NOISE_PER
-;     lda #$8
-;     sta NOISE_LEN
 
     ldx #4
 -   lda PLAYERY
@@ -308,19 +299,6 @@ ENDIF
     bvc ++
     dec FUEL
 ++  rts
-
-engine_sound:
-    lda FUEL_PLUME
-    lsr
-+   ora #$30
-    sta NOISE_VOL
-
-    lda #$d
-    sta NOISE_PER
-
-    lda #$f0
-    sta NOISE_LEN
-    rts
 
 check_bounds:
     lda PLAYERX
