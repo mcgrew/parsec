@@ -79,9 +79,8 @@ initial_spd_x:
 initial_spd_y:
     .hex 02 04 06 08 10 12
 
-.include famistudio_conf.asm
-.include famistudio_asm6.asm
 .include sfx.asm
-  
-    .pad $c000,$ff
+.include music.asm
+
+.org  $c000
 

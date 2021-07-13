@@ -1,99 +1,25 @@
 
-.base $C000
+.base $c000
 
-reset:
-    sei
-    cld
-    ldx #$40
-    stx $4017
-    ldx #$ff
-    txs            ; set up the stack
-    inx
-    stx PPUCTRL   ; disable NMI
-    stx DMC_FREQ  ; disable DMC IRQs
-    lda #$06
-    sta PPUMASK   ; disable rendering
+FAMISTUDIO_DPCM_OFF:
+.incbin samples.dmc
 
-    ; Optional (omitted):
-    ; Set up mapper and jmp to further init code here.
+.include famistudio_conf.asm
+.include famistudio_asm6.asm
 
-    ; The vblank flag is in an unknown state after reset,
-    ; so it is cleared here to make sure that vblankwait1
-    ; does not exit immediately.
-    bit PPUSTATUS
-
-    ; First of two waits for vertical blank to make sure that the
-    ; PPU has stabilized
-
-; vblankwait1
--   bit PPUSTATUS
-    bpl -
-
-    ; We now have about 30,000 cycles to burn before the PPU stabilizes.
-    ; One thing we can do with this time is put RAM in a known state.
-    ; Here we fill it with $00, which matches what (say) a C compiler
-    ; expects for BSS.  Conveniently, X is still 0.
-    txa
-
-@clrmem:
-    sta $00,x
-    sta $100,x
-    sta $200,x
-    sta $300,x
-    sta $400,x
-    sta $500,x
-    sta $600,x
-    sta $700,x
-    inx
-    bne @clrmem
-
-    ; Other things you can do between vblank waits are set up audio
-    ; or set up other mapper registers.
-
-    ; init player position
-    lda #$40
-    sta PLAYERX
-    lda #$80
-    sta PLAYERY
-    lda #$50
-    sta FUEL
-    sta LAST_FUEL
-    lda #$7F
-    sta FUEL+1
-
-    ; set up sprite 0 for split scrolling
-    lda #$c7
-    sta SPRITES
-    lda #$88
-    sta SPRITES+1
-    lda #$20
-    sta SPRITES+2
-    lda #$f0
-    sta SPRITES+3
-    sta GROUND_Y
-
-    ; init prng
-    sta PRNG_SEED+1
-
-;     jsr init_apu
-
-   ; wait for vblank
--   bit $2002
-    bpl -
-
-    jsr load_pal
-    jsr load_bg
-
-    lda #%10000000
-    sta PPUCTRL     ; enable NMI
-    lda #%00011010
-    sta PPUMASK    ; enable rendering
-
-    jsr famistudio_init
+game_start:
     lda #1
     ldx #<sounds
     ldy #>sounds
     jsr famistudio_sfx_init
+    lda #1
+    ldx #<parsec_music_data
+    ldy #>parsec_music_data
+    jsr famistudio_init
+    lda #0
+    sta MUSIC_TRACK
+    jsr famistudio_music_play
+
 
 game_loop:
     jsr read_joy
@@ -127,11 +53,8 @@ game_loop:
     jsr famistudio_update
     jmp game_loop
 
-handle_hud
--   bit PPUSTATUS   ; wait for end of blank
-    bvs -
--   bit PPUSTATUS   ; wait for sprite 0 hit
-    bvc -
+handle_hud:
+    jsr wait_for_sprite_0
     lda #$00
     sta PPUSCROLL
     sta PPUSCROLL
@@ -399,15 +322,19 @@ handle_buttons:
     dex
 +   stx HEAT
     lda BUTTONS
-    and BTN_SELECT
-    beq adjust_x_pos
+    and BTN_START
+    beq +
     jmp player_explode
++   lda NEW_BTNS
+    and BTN_SELECT
+    beq +
+    jsr next_track
 ;     jsr release_enemy
 
 
 adjust_x_pos:
     ; set the new x position
-    lda XSPEED
++   lda XSPEED
     and #$f8
     bpl +
     dec PLAYERX
@@ -502,33 +429,6 @@ set_sprite_position:
     sta SPRITES+22
     rts
 
-read_joy:
-    jsr get_joy_buttons
--   lda BUTTONS
-    pha
-    jsr get_joy_buttons
-    pla
-    cmp BUTTONS
-    bne -
-    rts
-
-get_joy_buttons:
-    ldx #$01
-    stx JOY
-    dex
-    stx JOY
-    inx
---  lda #$01
-    sta BUTTONS,x
-    lsr a        ; now A is 0
--   lda JOY,x
-    lsr a	     ; bit 0 -> Carry
-    rol BUTTONS,x  ; Carry -> bit 0; bit 7 -> Carry
-    bcc -
-    dex
-    beq --
-    rts
-
 load_pal:
     lda PPUSTATUS
     lda #$3f
@@ -609,33 +509,6 @@ load_bg:
     bne -
     beq --
 +   rts
-
-wait_for_nmi:
-    lda #$00
-    sta VBLANK
--   lda VBLANK
-    beq -
-    rts
-
-prng:
-    pha
-    tya
-    pha
-    ldy #8     ; iteration count (8 bits)
-    lda PRNG_SEED
-
--   asl        ; shift the register
-    rol PRNG_SEED+1
-    bcc +
-    eor #$39   ; apply XOR feedback whenever a 1 bit is shifted out
-
-+   dey
-    bne -
-    sta PRNG_SEED
-    pla
-    tay
-    pla
-    rts
 
 irq:
 nmi:
@@ -823,32 +696,16 @@ set_scroll:
     sta PPUSCROLL
     rts
 
-init_apu:
-    ; Init $4000-4013
-    ldy #$13
--   lda @regs,y
-    sta SQ1_VOL,y
-    dey
-    bpl -
-
-    ; We have to skip over $4014 (OAMDMA)
-    lda #$0f
-    sta SND_CHN
-    lda #$40
-    sta $4017
+next_track:
+    inc MUSIC_TRACK
+    lda MUSIC_TRACK
+    cmp parsec_music_data
+    bcc +
+    lda #0
++   sta MUSIC_TRACK
+    jsr famistudio_music_play
     rts
 
-@regs:
-    .hex 30 08 00 00
-    .hex 30 08 00 00
-    .hex 80 00 00 00
-    .hex 30 00 00 00
-    .hex 00 00 00 00
 
-
-.pad $fffa,$ff
-
-.word nmi
-.word reset
-.word irq
+.include base.asm
 
