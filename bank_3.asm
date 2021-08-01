@@ -2,7 +2,7 @@
 .base $c000
 
 FAMISTUDIO_DPCM_OFF:
-.incbin samples.dmc
+.incbin music.dmc
 
 .include famistudio_conf.asm
 .include famistudio_asm6.asm
