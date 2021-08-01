@@ -7,6 +7,30 @@ FAMISTUDIO_DPCM_OFF:
 .include famistudio_conf.asm
 .include famistudio_asm6.asm
 
+game_init:
+    ; init player position
+    lda #$40
+    sta PLAYERX
+    lda #$80
+    sta PLAYERY
+    lda #$50
+    sta FUEL
+    sta LAST_FUEL
+    lda #$7F
+    sta FUEL+1
+
+    ; set up sprite 0 for split scrolling
+    lda #$c7
+    sta SPRITES
+    lda #$88
+    sta SPRITES+1
+    lda #$20
+    sta SPRITES+2
+    lda #$f0
+    sta SPRITES+3
+    sta GROUND_Y
+    rts
+
 game_start:
     lda #1
     ldx #<sounds
@@ -54,7 +78,8 @@ game_loop:
     jmp game_loop
 
 handle_hud:
-    jsr wait_for_sprite_0
+    await_sprite_0
+;     jsr wait_for_sprite_0
     lda #$00
     sta PPUSCROLL
     sta PPUSCROLL
@@ -453,7 +478,7 @@ load_bg:
     ; create a random starfield
     ldy #$02
 --  ldx #$00
--   jsr prng
+-   jsr cycle_rng
     lda PRNG_SEED
     and #$fc
     beq +

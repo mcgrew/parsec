@@ -58,33 +58,13 @@ reset:
     ; Other things you can do between vblank waits are set up audio
     ; or set up other mapper registers.
 
-    ; init player position
-    lda #$40
-    sta PLAYERX
-    lda #$80
-    sta PLAYERY
-    lda #$50
-    sta FUEL
-    sta LAST_FUEL
-    lda #$7F
-    sta FUEL+1
+IFDEF game_init ; If this subroutine exists, jump to it here.
+    jsr game_init
+ENDIF
 
-    ; set up sprite 0 for split scrolling
-    lda #$c7
-    sta SPRITES
-    lda #$88
-    sta SPRITES+1
-    lda #$20
-    sta SPRITES+2
-    lda #$f0
-    sta SPRITES+3
-    sta GROUND_Y
-
-    ; init prng
+    ; init rng with whatever is in A
     sta PRNG_SEED+1
-
 ;     jsr init_apu
-
    ; wait for vblank
 -   bit $2002
     bpl -
@@ -99,12 +79,12 @@ reset:
 
     jmp game_start
 
-wait_for_sprite_0:
--   bit PPUSTATUS   ; wait for end of blank
-    bvs -
--   bit PPUSTATUS   ; wait for sprite 0 hit
-    bvc -
-    rts
+; wait_for_sprite_0:
+; -   bit PPUSTATUS   ; wait for end of blank
+;     bvs -
+; -   bit PPUSTATUS   ; wait for sprite 0 hit
+;     bvc -
+;     rts
 
 wait_for_nmi:
     lda #$00
@@ -113,7 +93,7 @@ wait_for_nmi:
     beq -
     rts
 
-prng:
+cycle_rng:
     pha
     tya
     pha
