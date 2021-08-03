@@ -15,6 +15,7 @@
     FUEL        .dsb 2
     LAST_FUEL   .dsb 1
     FRAMECOUNT  .dsb 1
+    COUNTDOWN   .dsb 1
     GROUND_Y    .dsb 1
     LASER_FRAME .dsb 1
     ENEMY_SPDX  .dsb 1

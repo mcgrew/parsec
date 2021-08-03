@@ -1,4 +1,10 @@
 
+.macro do_nmi
+    jsr wait_for_nmi
+    jsr set_scroll
+    jsr famistudio_update
+.endm
+
 .base $c000
 
 FAMISTUDIO_DPCM_OFF:
@@ -72,14 +78,11 @@ game_loop:
     jsr set_sprite_position
 
     jsr handle_hud
-    jsr wait_for_nmi
-    jsr set_scroll
-    jsr famistudio_update
+    do_nmi
     jmp game_loop
 
 handle_hud:
     await_sprite_0
-;     jsr wait_for_sprite_0
     lda #$00
     sta PPUSCROLL
     sta PPUSCROLL
@@ -124,22 +127,24 @@ player_explode:
     bne -
     ldx #104
     jsr clear_sprites_from_x
+    lda #$7f
+    sta COUNTDOWN
+    jsr handle_hud
 
 explode_loop:
+    do_nmi
     jsr handle_hud
-    jsr wait_for_nmi
-    jsr famistudio_update
-    jsr set_scroll
 
     ldx #4             ; load the explosion sprites
-    lda FRAMECOUNT
+    lda COUNTDOWN
     lsr
     lsr
     lsr
     lsr
-    lsr
-    clc
-    adc #$90
+    sta TMP
+    lda #$97
+    sec
+    sbc TMP
 -   inx
     sta SPRITES,x
     inx
@@ -148,60 +153,45 @@ explode_loop:
     cpx #104
     bne -
 
-    lda FRAMECOUNT
-    and #$0f
+    lda COUNTDOWN
+    and #$07
     bne explode_loop
-    dec SPRITES+4   ; adjust y values of first row
-    dec SPRITES+8
-    dec SPRITES+12
-    dec SPRITES+16
-    dec SPRITES+20
-    inc SPRITES+84  ; adjust y values of last row
-    inc SPRITES+88
-    inc SPRITES+92
-    inc SPRITES+96
-    inc SPRITES+100
 
-    dec SPRITES+7   ; adjust x values of first column
-    dec SPRITES+27
-    dec SPRITES+47
-    dec SPRITES+67
-    dec SPRITES+87
-    inc SPRITES+23  ; adjust x values of last column
-    inc SPRITES+43
-    inc SPRITES+63
-    inc SPRITES+93
-    inc SPRITES+103
+    ldy #9
+    lda COUNTDOWN
+    and #$0f
+    bne +
+    ldy #19
+    +
+-   ldx explode_anim_c1, y
+    dec SPRITES, x
+    ldx explode_anim_c5, y
+    inc SPRITES, x
+    dey
+    bpl -
 
-    lda FRAMECOUNT
+    lda COUNTDOWN
     and #$1f
     bne explode_loop
-    dec SPRITES+24  ; adjust y values of second row
-    dec SPRITES+28
-    dec SPRITES+32
-    dec SPRITES+36
-    dec SPRITES+40
-    inc SPRITES+64  ; adjust y values of fourth row
-    inc SPRITES+68
-    inc SPRITES+72
-    inc SPRITES+76
-    inc SPRITES+80
+    dec SPRITES+47
+    dec SPRITES+12
+    inc SPRITES+63
+    inc SPRITES+92
 
-    dec SPRITES+11  ; adjust x values of second column
-    dec SPRITES+31
-    dec SPRITES+51
-    dec SPRITES+71
-    dec SPRITES+91
-    inc SPRITES+19  ; adjust x values of fourth column
-    inc SPRITES+39
-    inc SPRITES+59
-    inc SPRITES+79
-    inc SPRITES+99
+    lda COUNTDOWN
+    and #$2f
+    bne explode_loop
+    dec SPRITES+27
+    dec SPRITES+67
+    dec SPRITES+8
+    dec SPRITES+16
+    inc SPRITES+43
+    inc SPRITES+83
+    inc SPRITES+88
+    inc SPRITES+96
 
-    lda FRAMECOUNT
-    beq +
-    jmp explode_loop
-+
+    lda COUNTDOWN
+    bne explode_loop
 
     lda #$50
     sta FUEL
@@ -215,6 +205,7 @@ explode_loop:
     lda #$00
     sta XSPEED
     ; intentional fall-through
+    do_nmi
 
 clear_sprites:
     ldx #4
@@ -352,14 +343,13 @@ handle_buttons:
     jmp player_explode
 +   lda NEW_BTNS
     and BTN_SELECT
-    beq +
+    beq adjust_x_pos
     jsr next_track
-;     jsr release_enemy
 
 
 adjust_x_pos:
     ; set the new x position
-+   lda XSPEED
+    lda XSPEED
     and #$f8
     bpl +
     dec PLAYERX
@@ -545,10 +535,14 @@ nmi:
     pha
     inc VBLANK
     inc FRAMECOUNT
-    lda #$00
+    lda COUNTDOWN  ; decrement countdown if it's not zero
+    beq +
+    dec COUNTDOWN
++   lda #$00
     sta PPUMASK     ; disable rendering
 
-+   lda #$00
+    ; update all sprites
+    lda #$00
     sta OAMADDR
     sta OAMADDR
     lda #>SPRITES

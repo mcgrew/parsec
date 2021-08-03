@@ -19,8 +19,22 @@ player_sprite:
     .hex f8 01 00 00  f8 02 00 08  f0 03 00 00
     .hex f8 00 00 f0  f8 00 00 f8
 
-explode_animation:
-    .hex 00
+explode_anim_c1:
+    .db 7, 27, 47, 67, 87 ; column 1 X
+explode_anim_r1:
+    .db 4, 8, 12, 16, 20 ; row 1 Y
+explode_anim_c2:
+    .db 11, 31, 51, 71, 91 ; column 2 X
+explode_anim_r2:
+    .db 24, 28, 32, 36, 40 ; row 2 Y
+explode_anim_c5:
+    .db 23, 43, 63, 83, 103 ; column 5 X
+explode_anim_r5:
+    .db 84, 88, 92, 96, 100 ; row 5 Y
+explode_anim_c4:
+    .db 19, 39, 59, 79, 99 ; column 4 X
+explode_anim_r4:
+    .db 64, 68, 72, 76, 80 ; row 4 Y
 
 plume:
     .hex 20 20 20 20 20 20 1a 1b 1c 1d 1e 1f
@@ -54,18 +68,18 @@ ppu_attr_sm:
     .hex 30 ff 06 af 02 5f 06 aa 02 55 00
 
 ; APU period tables
-period_table_lo:
-    .hex f1 7f 13 ad 4d f3 9d 4c 00 b8 74 34 f8 bf 89 56
-    .hex 26 f9 ce a6 80 5c 3a 1a fb df c4 ab 93 7c 67 52
-    .hex 3f 2d 1c 0c fd ef e1 d5 c9 bd b3 a9 9f 96 8e 86
-    .hex 7e 77 70 6a 64 5e 59 54 4f 4b 46 42 3f 3b 38 34
-    .hex 31 2f 2c 29 27 25 23 21 1f 1d 1b 1a 18 17 15 14
-period_table_hi:
-    .hex 07 07 07 06 06 05 05 05 05 04 04 04 03 03 03 03
-    .hex 03 02 02 02 02 02 02 02 01 01 01 01 01 01 01 01
-    .hex 01 01 01 01 00 00 00 00 00 00 00 00 00 00 00 00
-    .hex 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-    .hex 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+; period_table_lo:
+;     .hex f1 7f 13 ad 4d f3 9d 4c 00 b8 74 34 f8 bf 89 56
+;     .hex 26 f9 ce a6 80 5c 3a 1a fb df c4 ab 93 7c 67 52
+;     .hex 3f 2d 1c 0c fd ef e1 d5 c9 bd b3 a9 9f 96 8e 86
+;     .hex 7e 77 70 6a 64 5e 59 54 4f 4b 46 42 3f 3b 38 34
+;     .hex 31 2f 2c 29 27 25 23 21 1f 1d 1b 1a 18 17 15 14
+; period_table_hi:
+;     .hex 07 07 07 06 06 05 05 05 05 04 04 04 03 03 03 03
+;     .hex 03 02 02 02 02 02 02 02 01 01 01 01 01 01 01 01
+;     .hex 01 01 01 01 00 00 00 00 00 00 00 00 00 00 00 00
+;     .hex 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+;     .hex 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
 
 enemy_start_x:
     .hex 90 90 90 90 90 90
