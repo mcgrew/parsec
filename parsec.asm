@@ -1,8 +1,14 @@
 
 .include defs.asm
+.include macros.asm
 
 ; *** VARIABLES ***
 .enum $00
+    ENEMY_X     .dsb 8
+    ENEMY_Y     .dsb 8
+    ENEMY_SPEED .dsb 16
+    ENEMY_STEP  .dsb 8
+    ENEMY_COUNT .dsb 1
     PLAYERX     .dsb 1
     PLAYERY     .dsb 1
     X_SUBPIXEL  .dsb 1
@@ -15,16 +21,10 @@
     FUEL        .dsb 2
     LAST_FUEL   .dsb 1
     FRAMECOUNT  .dsb 1
-    COUNTDOWN   .dsb 1
+    COUNTDOWN   .dsb 2
     GROUND_Y    .dsb 1
     LASER_FRAME .dsb 1
-    ENEMY_SPDX  .dsb 1
-    ENEMY_SUBX  .dsb 1
-    ENEMY_SPDY  .dsb 1
-    ENEMY_SUBY  .dsb 1
-    ENEMY_POSX  .dsb 1
-    ENEMY_POSY  .dsb 1
-    NEXT_ENEMY  .dsb 1
+    LEVEL       .dsb 1
     MUSIC_TRACK .dsb 1
 .ende
 .enum $200

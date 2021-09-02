@@ -1,5 +1,5 @@
 
-.macro do_nmi
+.macro mac_do_nmi
     jsr wait_for_nmi
     jsr set_scroll
     jsr famistudio_update
@@ -35,6 +35,9 @@ game_init:
     lda #$f0
     sta SPRITES+3
     sta GROUND_Y
+
+    lda #01
+    sta LEVEL
     rts
 
 game_start:
@@ -46,17 +49,19 @@ game_start:
     ldx #<parsec_music_data
     ldy #>parsec_music_data
     jsr famistudio_init
-    lda #0
+    lda #$ff
     sta MUSIC_TRACK
-    jsr famistudio_music_play
+;     jsr famistudio_music_play
 
 
 game_loop:
+    jsr cycle_rng
     jsr read_joy
     jsr handle_sfx
     jsr handle_buttons
     jsr check_speed
     jsr check_bounds
+    jsr update_enemy_pos
 
     ldx #$00       ; if we are on the left X boundary, fuel use should be medium
     lda PLAYERX    ; otherwise the player can hold left to avoid using fuel
@@ -78,11 +83,11 @@ game_loop:
     jsr set_sprite_position
 
     jsr handle_hud
-    do_nmi
+    mac_do_nmi
     jmp game_loop
 
 handle_hud:
-    await_sprite_0
+    do_wait_for_sprite_hit
     lda #$00
     sta PPUSCROLL
     sta PPUSCROLL
@@ -108,9 +113,13 @@ handle_sfx:
 +   rts 
 
 player_explode:
+    jsr famistudio_music_stop
+    dec MUSIC_TRACK
     lda SFX_EXPLODE
     ldx #FAMISTUDIO_SFX_CH3
     jsr famistudio_sfx_play
+    lda #0
+    sta ENEMY_COUNT
 
     ldx #4
 -   lda PLAYERY
@@ -125,14 +134,15 @@ player_explode:
     inx
     cpx #104
     bne -
-    ldx #104
     jsr clear_sprites_from_x
+    lda #0
+    sta COUNTDOWN+1
     lda #$7f
     sta COUNTDOWN
     jsr handle_hud
 
 explode_loop:
-    do_nmi
+    mac_do_nmi
     jsr handle_hud
 
     ldx #4             ; load the explosion sprites
@@ -204,8 +214,9 @@ explode_loop:
     sta PLAYERY
     lda #$00
     sta XSPEED
-    ; intentional fall-through
     do_nmi
+    jsr next_track
+    ; intentional fall-through
 
 clear_sprites:
     ldx #4
@@ -337,10 +348,10 @@ handle_buttons:
     beq +
     dex
 +   stx HEAT
-    lda BUTTONS
+    lda NEW_BTNS
     and BTN_START
     beq +
-    jmp player_explode
+    jsr spawn_enemy
 +   lda NEW_BTNS
     and BTN_SELECT
     beq adjust_x_pos
@@ -362,23 +373,86 @@ adjust_x_pos:
 
     rts
 
-update_enemy_pos:
-    ldx #$00
-    rts
+spawn_enemy:
+    ldx ENEMY_COUNT
+    inx
+    cpx #2
+    beq ++
+    stx ENEMY_COUNT
+    dex
+    lda RANDOM
+    and #$0f
+    ora #$e0
+    sta ENEMY_X,x
+    lda #1
+    sta ENEMY_Y,x
+    sta ENEMY_SPEED,x
+    lda RANDOM
+    and #$30
+    sta ENEMY_STEP
 
-release_enemy:
-    ldx NEXT_ENEMY
-    lda enemy_start_x,x
-    sta ENEMY_POSX,x
-    inx
-    lda enemy_start_y,x
-    sta ENEMY_POSY,x
-    lda initial_spd_x,x
-    sta ENEMY_SPDX,x
-    lda initial_spd_y,x
-    sta ENEMY_SPDY,x
-    inx
-    stx NEXT_ENEMY
+    lda SFX_INCOMING
+    ldx #FAMISTUDIO_SFX_CH1
+    jsr famistudio_sfx_play
+++  rts
+
+update_enemy_pos:
+    ldx ENEMY_COUNT
+    dex
+    bmi ++
+-   lda ENEMY_SPEED+8,x
+    clc
+    adc #1
+    sta ENEMY_SPEED+8,x
+    lda ENEMY_SPEED,x
+    adc #0
+    sta ENEMY_SPEED,x
+    cmp enemy_max_speed
+    bmi +
+    dec ENEMY_SPEED,x
++   lda ENEMY_X,x
+    sec
+    sbc ENEMY_SPEED,x
+    sta ENEMY_X,x
+    lda ENEMY_STEP,x
+    cmp #$40
+    beq ++
+    lsr
+    lsr
+    lsr
+    lsr
+    tay
+    lda ENEMY_Y,x
+    clc
+    adc enemy_pattern_y,y
+    sta ENEMY_Y,x
+    inc ENEMY_STEP,x
+    dex
+    bpl -
+
+++  lda ENEMY_COUNT
+    asl
+    asl
+    asl
+    tax
+    dex
+-   lda enemy_sprites,x
+    clc
+    adc ENEMY_X
+    sta SPRITES+$80,x
+    dex
+    lda enemy_sprites,x
+    sta SPRITES+$80,x
+    dex
+    lda enemy_sprites,x
+    sta SPRITES+$80,x
+    dex
+    lda enemy_sprites,x
+    clc
+    adc ENEMY_Y
+    sta SPRITES+$80,x
+    dex
+    bpl -
     rts
 
 check_speed:
@@ -469,12 +543,12 @@ load_bg:
     ldy #$02
 --  ldx #$00
 -   jsr cycle_rng
-    lda PRNG_SEED
+    lda RANDOM
     and #$fc
     beq +
     lda #$20
     bne ++
-+   lda PRNG_SEED
++   lda RANDOM
     and #$01
     ora #$80
 ++  sta PPUDATA
@@ -536,10 +610,25 @@ nmi:
     inc VBLANK
     inc FRAMECOUNT
     lda COUNTDOWN  ; decrement countdown if it's not zero
+    ora COUNTDOWN+1
     beq +
-    dec COUNTDOWN
+    lda COUNTDOWN
+    sec
+    sbc #1
+    sta COUNTDOWN
+    lda COUNTDOWN+1
+    sbc #0
+
 +   lda #$00
     sta PPUMASK     ; disable rendering
+
+    lda #$90        ; update the LIFT number
+    sta PPUADDR
+    lda #$23
+    sta PPUADDR
+    lda LEVEL
+    adc #$30
+    sta PPUDATA
 
     ; update all sprites
     lda #$00
@@ -547,10 +636,10 @@ nmi:
     sta OAMADDR
     lda #>SPRITES
     sta OAMDMA
+
     lda FUEL
     cmp #$50
     bne +
-
     cmp LAST_FUEL
     beq ++
     sta LAST_FUEL
@@ -720,7 +809,10 @@ next_track:
     lda MUSIC_TRACK
     cmp parsec_music_data
     bcc +
-    lda #0
+    lda #$ff
+    sta MUSIC_TRACK
+    jsr famistudio_music_stop
+    rts
 +   sta MUSIC_TRACK
     jsr famistudio_music_play
     rts

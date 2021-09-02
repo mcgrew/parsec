@@ -1,8 +1,8 @@
 
-.enum $d0
+.enum $e0
     TMP         .dsb 1
     TMP2        .dsb 1
-    PRNG_SEED   .dsb 2
+    RANDOM      .dsb 2
     BUTTONS     .dsb 2
     NEW_BTNS    .dsb 2
     RELEASED_BTNS .dsb 2
@@ -63,7 +63,7 @@ IFDEF game_init ; If this subroutine exists, jump to it here.
 ENDIF
 
     ; init rng with whatever is in A
-    sta PRNG_SEED+1
+    sta RANDOM+1
 ;     jsr init_apu
    ; wait for vblank
 -   bit $2002
@@ -98,16 +98,16 @@ cycle_rng:
     tya
     pha
     ldy #8     ; iteration count (8 bits)
-    lda PRNG_SEED
+    lda RANDOM
 
 -   asl        ; shift the register
-    rol PRNG_SEED+1
+    rol RANDOM+1
     bcc +
     eor #$39   ; apply XOR feedback whenever a 1 bit is shifted out
 
 +   dey
     bne -
-    sta PRNG_SEED
+    sta RANDOM
     pla
     tay
     pla

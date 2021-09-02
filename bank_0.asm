@@ -8,16 +8,33 @@ pal1:
     .hex 0f 28 30 30                                             ;;
     .hex 0f 1A 12 11 ; Sprite colors                             ;;
     .hex 0f 30 1B 1A                                             ;;
-    .hex 0f 19 18 17                                             ;;
-    .hex 0f 0f 15 14
+    .hex 0f 24 18 17                                             ;;
+    .hex 0f 28 15 14
 
 bounds:
-    .hex 20 e0 20 e0
+    .hex 20 e0 18 e0
 
 player_sprite:
     ; y_offset, sprite, attributes, x_offset, ...
     .hex f8 01 00 00  f8 02 00 08  f0 03 00 00
     .hex f8 00 00 f0  f8 00 00 f8
+
+enemy_max_speed:
+    .hex 08
+
+enemy_sprites:
+    ; y_offset, sprite, attributes, x_offset, ...
+    .hex 00 04 02 f8  00 08 02 00
+    .hex 00 05 02 f8  00 09 02 00
+    .hex 00 06 02 f8  00 0a 02 00
+
+boss_sprite:
+    ; y_offset, sprite, attributes, x_offset, ...
+    .hex f8 0c 01 f8  f8 0d 01 00
+    .hex 00 0c 81 f8  00 0d 81 00
+
+enemy_pattern_y:
+    .hex 04 03 02 01
 
 explode_anim_c1:
     .db 7, 27, 47, 67, 87 ; column 1 X
@@ -80,18 +97,6 @@ ppu_attr_sm:
 ;     .hex 01 01 01 01 00 00 00 00 00 00 00 00 00 00 00 00
 ;     .hex 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
 ;     .hex 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-
-enemy_start_x:
-    .hex 90 90 90 90 90 90
-
-enemy_start_y:
-    .hex 00 00 00 00 00 00
-
-initial_spd_x:
-    .hex 00 00 00 00 00 00
-
-initial_spd_y:
-    .hex 02 04 06 08 10 12
 
 .include sfx.asm
 .include music.asm

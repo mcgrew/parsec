@@ -55,10 +55,3 @@ BTN_SELECT EQU #$20
 BTN_B      EQU #$40
 BTN_A      EQU #$80
 
-.macro await_sprite_0
--   bit PPUSTATUS   ; wait for end of blank
-    bvs -
--   bit PPUSTATUS   ; wait for sprite 0 hit
-    bvc -
-.endm
-
