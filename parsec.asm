@@ -14,6 +14,7 @@
     X_SUBPIXEL  .dsb 1
     XSPEED      .dsb 1
     FUEL_PLUME  .dsb 1
+    FIRING      .dsb 1
     LIVES       .dsb 1
     HEAT        .dsb 1
     SCROLLX     .dsb 2
@@ -26,6 +27,8 @@
     LASER_FRAME .dsb 1
     LEVEL       .dsb 1
     MUSIC_TRACK .dsb 1
+    LASER_POS   .dsb 2
+    LASER_LEN   .dsb 1
 .ende
 .enum $200
     SPRITES    .dsb 256
@@ -33,7 +36,7 @@
 
 ; *** PRG ROM ***
 .include bank_0.asm
-.include bank_3.asm
+.include bank_1.asm
 
 ; *** CHR ROM ***
 .incbin chr_rom.chr

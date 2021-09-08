@@ -6,17 +6,20 @@ pal1:
     .hex 0f 30 0f 0f                                             ;;
     .hex 0f 2c 15 30                                             ;;
     .hex 0f 28 30 30                                             ;;
-    .hex 0f 1A 12 11 ; Sprite colors                             ;;
+    .hex 0f 1A 12 0f ; Sprite colors                             ;;
     .hex 0f 30 1B 1A                                             ;;
     .hex 0f 24 18 17                                             ;;
     .hex 0f 28 15 14
+
+laser_colors:
+    .hex 2b 24 2a 22 2c 26 21 38
 
 bounds:
     .hex 20 e0 18 e0
 
 player_sprite:
     ; y_offset, sprite, attributes, x_offset, ...
-    .hex f8 01 00 00  f8 02 00 08  f0 03 00 00
+    .hex f8 a0 00 00  f8 a1 00 08  f0 a2 00 00
     .hex f8 00 00 f0  f8 00 00 f8
 
 enemy_max_speed:
@@ -33,6 +36,8 @@ boss_sprite:
     .hex f8 0c 01 f8  f8 0d 01 00
     .hex 00 0c 81 f8  00 0d 81 00
 
+enemy_pattern_x:
+    .hex 00 00 00 00
 enemy_pattern_y:
     .hex 04 03 02 01
 

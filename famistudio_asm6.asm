@@ -81,9 +81,9 @@
 ; For ASM6, you need to specify the .enum location for zeroage and RAM/BSS as well as the .org for the engine code.
 ;======================================================================================================================
 
-; FAMISTUDIO_ASM6_ZP_ENUM   = $0000
-; FAMISTUDIO_ASM6_BSS_ENUM  = $0200
-; FAMISTUDIO_ASM6_CODE_BASE = $8000
+FAMISTUDIO_ASM6_ZP_ENUM   = $0000
+FAMISTUDIO_ASM6_BSS_ENUM  = $0200
+FAMISTUDIO_ASM6_CODE_BASE = $8000
 
 ;======================================================================================================================
 ; 2) AUDIO EXPANSION CONFIGURATION
