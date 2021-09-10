@@ -1,13 +1,14 @@
 
 .base $8000
 
-pal1:
+bg_pal:
     .hex 0f 11 16 15 ; Background colors                         ;;
     .hex 0f 30 0f 0f                                             ;;
     .hex 0f 2c 15 30                                             ;;
     .hex 0f 28 30 30                                             ;;
-    .hex 0f 1A 12 0f ; Sprite colors                             ;;
-    .hex 0f 30 1B 1A                                             ;;
+sprite_pal:
+    .hex 0f 2a 12 0f ; Sprite colors                             ;;
+    .hex 0f 30 12 0f                                             ;;
     .hex 0f 24 18 17                                             ;;
     .hex 0f 28 15 14
 
@@ -57,6 +58,10 @@ explode_anim_c4:
     .db 19, 39, 59, 79, 99 ; column 4 X
 explode_anim_r4:
     .db 64, 68, 72, 76, 80 ; row 4 Y
+explode_anim_extra_dec:
+    .db 47, 12, 27, 67, 8, 16
+explode_anim_extra_inc:
+    .db 63, 92, 43, 83, 8, 96
 
 plume:
     .hex 20 20 20 20 20 20 1a 1b 1c 1d 1e 1f

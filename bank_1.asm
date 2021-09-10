@@ -69,19 +69,23 @@ game_loop:
     bne +
     lda #$04
     sta FUEL_PLUME
-
-+   jsr check_collision
++
+    jsr check_collision
 
     lda HEAT       ; explode if the ship is too hot
-    cmp #$e0
+    cmp #$b4
     bcc +
-    lda #$00
+    lda #$ff
     sta HEAT
     jsr player_explode
-
-+   jsr consume_fuel
++
+    jsr consume_fuel
     jsr set_sprite_position
 
+    lda FIRING
+    beq +
+    jsr prepare_laser
++
     jsr handle_hud
     mac_do_nmi
     jmp game_loop
@@ -100,6 +104,7 @@ check_collision:
     bmi +
     lda #$00        ; collision with ground!
     sta FUEL
+    sta HEAT
     beq player_explode
 +   rts
 
@@ -114,7 +119,6 @@ handle_sfx:
 
 player_explode:
     jsr famistudio_music_stop
-    dec MUSIC_TRACK
     lda SFX_EXPLODE
     ldx #FAMISTUDIO_SFX_CH1
     jsr famistudio_sfx_play
@@ -127,7 +131,9 @@ player_explode:
     sta SPRITES,x
     inx
     inx
-    lda #0
+    lda #1
+    clc
+    adc HEAT
     sta SPRITES,x
     inx
     lda PLAYERX
@@ -173,7 +179,7 @@ explode_loop:
     and #$0f
     bne +
     ldy #19
-    +
++
 -   ldx explode_anim_c1, y
     dec SPRITES, x
     ldx explode_anim_c5, y
@@ -182,24 +188,20 @@ explode_loop:
     bpl -
 
     lda COUNTDOWN
-    and #$1f
+    and #$3f
     bne explode_loop
-    dec SPRITES+47
-    dec SPRITES+12
-    inc SPRITES+63
-    inc SPRITES+92
-
+    ldy #6
     lda COUNTDOWN
-    and #$2f
-    bne explode_loop
-    dec SPRITES+27
-    dec SPRITES+67
-    dec SPRITES+8
-    dec SPRITES+16
-    inc SPRITES+43
-    inc SPRITES+83
-    inc SPRITES+88
-    inc SPRITES+96
+    and #$1f
+    beq +
+    ldy #2
++
+-   ldx explode_anim_extra_dec, y
+    dec SPRITES, x
+    ldx explode_anim_extra_inc, y
+    inc SPRITES, x
+    dey
+    bpl -
 
     lda COUNTDOWN
     bne explode_loop
@@ -215,8 +217,9 @@ explode_loop:
     sta PLAYERY
     lda #$00
     sta XSPEED
-    do_nmi
-    jsr next_track
+    sta HEAT
+    mac_do_nmi
+    jsr play_track
     ; intentional fall-through
 
 clear_sprites:
@@ -297,32 +300,31 @@ handle_buttons:
     and BTN_B       ; hold for slow up/down movement
     bne +
     inc PLAYERY
-
-+   lda #$04
++
+    lda #$04
     sta FUEL_PLUME
     lda BUTTONS
     and BTN_LEFT
-    beq +
-    dec XSPEED
+    beq ++
     dec XSPEED
     lda #$00
     sta FUEL_PLUME
-+   lda BUTTONS
+++  lda BUTTONS
     and BTN_RIGHT
-    beq +
+    beq ++
     inc XSPEED
     lda #$08
     sta FUEL_PLUME
-
-+   lda BUTTONS      ; set the laser frame to $ff (invalid) if A is not pressed
+++
+    lda BUTTONS      ; set the laser frame to $ff (invalid) if A is not pressed
     and BTN_A
     bne +
     lda #$ff
     sta LASER_FRAME
     lda #$0
     sta FIRING
-
-+   ldx HEAT
++
+    ldx HEAT
     lda BUTTONS
     and BTN_A
     beq ++
@@ -343,12 +345,9 @@ handle_buttons:
     ldx #FAMISTUDIO_SFX_CH0
     jsr famistudio_sfx_play
     pla
+    clc
+    adc #7
     tax
-    lda BUTTONS     ; only increase the heat if the player is moving
-    and #$0f
-    beq ++ 
-    inx
-    inx
 ++  cpx #$00
     beq +
     dex
@@ -530,7 +529,7 @@ load_pal:
     sta PPUADDR
     ldx #$00
 
--   lda pal1, x
+-   lda bg_pal, x
     sta PPUDATA
     inx
     cpx #$20
@@ -543,7 +542,6 @@ load_bg:
     lda #$00
     sta PPUADDR
 
-    ; create a random starfield
     ldy #$02
 --  ldx #$00
 -   lda #$20
@@ -595,22 +593,22 @@ load_bg:
     beq --
 +   rts
 
-draw_laser:
+prepare_laser:
     clc
     lda #$20
-    sta LASER_POS+1
+    sta LASER_ADDR+1
     lda PLAYERY ; load the player Y position
     sec
     sbc #3
     asl         ; multiply by 4 to get the vertical ppu position
     bcc +
-    inc LASER_POS+1
-    inc LASER_POS+1
+    inc LASER_ADDR+1
+    inc LASER_ADDR+1
 +   asl
     bcc +
-    inc LASER_POS+1
+    inc LASER_ADDR+1
 +   and #$E0
-    sta LASER_POS
+    sta LASER_ADDR
     lda #8
     clc
     adc PLAYERX ; get the X position
@@ -619,14 +617,8 @@ draw_laser:
     lsr
     lsr
     clc
-    adc LASER_POS
-    sta LASER_POS
-    and #$1f
-    tay
-+   lda LASER_POS+1
-    sta PPUADDR
-    lda LASER_POS
-    sta PPUADDR
+    adc LASER_ADDR
+    sta LASER_ADDR
     lda #$ff
     sbc PLAYERX
     lsr
@@ -634,8 +626,32 @@ draw_laser:
     lsr
     tax
     dex
-    dex
     stx LASER_LEN
+;     lda LASER_ADDR+1
+;     sta PPUADDR
+;     lda LASER_ADDR
+;     sta PPUADDR
+; -   lda PPUDATA
+;     sta $300,x
+;     dex
+;     bne -
+;     lda #$20
+;     sta PPUADDR
+;     lda #$00
+;     sta PPUADDR
+    rts
+
+draw_laser:
++   lda LASER_ADDR+1
+    sta CLR_LSR_ADDR+1
+    sta PPUADDR
+    lda LASER_ADDR
+    sta CLR_LSR_ADDR
+    sta PPUADDR
+    and #$1f
+    tay
+    ldx LASER_LEN
+    stx CLR_LSR_LEN
     lda PLAYERY
     sec
     sbc #3
@@ -646,17 +662,18 @@ draw_laser:
     iny
     cpy #$20
     bne + ;   we overflowed the line - fix the ppu address
-    jsr fix_ppu_addr
+    jsr fix_laser_ppu_addr
 +   dex
-    bpl -
+    bne -
     rts
 
 clear_laser:
-    ldx LASER_LEN
+    pha
+    ldx CLR_LSR_LEN
     beq ++
-    lda LASER_POS+1
+    lda CLR_LSR_ADDR+1
     sta PPUADDR
-    lda LASER_POS
+    lda CLR_LSR_ADDR
     sta PPUADDR
     and #$1f
     tay
@@ -665,18 +682,29 @@ clear_laser:
     iny
     cpy #$20
     bne + ;   we overflowed the line - fix the ppu address
-    jsr fix_ppu_addr
+    jsr fix_clear_laser_ppu_addr
 +   dex
-    bpl -
-    inx
-    stx LASER_LEN
-++  rts
+    bne -
+++  pla
+    bne +
+    stx CLR_LSR_LEN
++   rts
 
-fix_ppu_addr:
+fix_clear_laser_ppu_addr:
     pha
-    lda LASER_POS+1
+    lda CLR_LSR_ADDR+1
     sta PPUADDR
-    lda LASER_POS
+    lda CLR_LSR_ADDR
+    and #$E0
+    sta PPUADDR
+    pla
+    rts
+
+fix_laser_ppu_addr:
+    pha
+    lda LASER_ADDR+1
+    sta PPUADDR
+    lda LASER_ADDR
     and #$E0
     sta PPUADDR
     pla
@@ -732,12 +760,14 @@ nmi:
     tax
     lda laser_colors, x
     sta PPUDATA
++
 
     ; draw a laser if needed
-+   jsr clear_laser
+    jsr clear_laser
     lda FRAMECOUNT
     and FIRING
     beq +
+;     jsr prepare_laser
     jsr draw_laser
 
     ; update all sprites
@@ -822,16 +852,22 @@ nmi:
     lda #%10000000
     sta PPUCTRL     ; set PPUADDR to increment by 1
 
-    ldx #$1a        ; green
-    lda HEAT        ; flash the ship if the laser is hot
-    cmp #$40
+    ldx sprite_pal+1 ; green
+    lda HEAT         ; flash the ship if the laser is hot
+    cmp #$ff
+    beq ++
+    cmp #$20
+    bcc +++
+    ldy #$10
+    cmp #$78
     bcc +
-    lda FRAMECOUNT
-    and #$10
-    beq +
-    ldx #$15        ; red
+    ldy #$8
++   tya
+    and FRAMECOUNT
+    beq +++
+++  ldx #$16        ; red
 
-+   lda #$3f        ; overwrite the ship color (palette 4, byte 1)
++++ lda #$3f        ; overwrite the ship color (palette 4, byte 1)
     sta PPUADDR
     lda #$11
     sta PPUADDR
@@ -847,16 +883,18 @@ IFDEF DEBUG
 ;     jsr show_mem
     lda PLAYERX
     jsr show_mem
-    lda SCROLLX
-    jsr show_mem
-;     lda PLAYERY
+;     lda SCROLLX
 ;     jsr show_mem
+    lda PLAYERY
+    jsr show_mem
+    lda HEAT
+    jsr show_mem
 ;     lda GROUND_Y
 ;     jsr show_mem
-    lda LASER_POS+1
-    jsr show_mem
-    lda LASER_POS
-    jsr show_mem
+;     lda LASER_ADDR+1
+;     jsr show_mem
+;     lda LASER_ADDR
+;     jsr show_mem
 ENDIF
 
     lda #$20        ; reset the PPU address
@@ -913,6 +951,7 @@ set_scroll:
 
 next_track:
     inc MUSIC_TRACK
+play_track:
     lda MUSIC_TRACK
     cmp parsec_music_data
     bcc +
