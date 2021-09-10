@@ -69,8 +69,9 @@ ENDIF
 -   bit $2002
     bpl -
 
-    jsr load_pal
-    jsr load_bg
+IFDEF first_vblank
+    jsr first_vblank
+ENDIF
 
     lda #%10000000
     sta PPUCTRL     ; enable NMI
@@ -150,20 +151,20 @@ get_joy_buttons:
     beq --
     rts
 
-init_apu:
-    ; Init $4000-4013
-    ldy #$13
--   lda @regs,y
-    sta SQ1_VOL,y
-    dey
-    bpl -
-
-    ; We have to skip over $4014 (OAMDMA)
-    lda #$0f
-    sta SND_CHN
-    lda #$40
-    sta $4017
-    rts
+; init_apu:
+;     ; Init $4000-4013
+;     ldy #$13
+; -   lda @regs,y
+;     sta SQ1_VOL,y
+;     dey
+;     bpl -
+; 
+;     ; We have to skip over $4014 (OAMDMA)
+;     lda #$0f
+;     sta SND_CHN
+;     lda #$40
+;     sta $4017
+;     rts
 
 @regs:
     .hex 30 08 00 00

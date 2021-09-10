@@ -40,6 +40,22 @@ game_init:
     sta LEVEL
     rts
 
+first_vblank:
+    jsr load_pal
+
+    lda #$20
+    sta PPUADDR
+    lda #$00
+    sta PPUADDR
+    jsr load_bg
+    lda #$24
+    sta PPUADDR
+    lda #$00
+    sta PPUADDR
+    jsr load_bg
+    rts
+
+
 game_start:
     lda #1
     ldx #<sounds
@@ -537,11 +553,6 @@ load_pal:
     rts
 
 load_bg:
-    lda #$20
-    sta PPUADDR
-    lda #$00
-    sta PPUADDR
-
     ldy #$02
 --  ldx #$00
 -   lda #$20
@@ -575,14 +586,8 @@ load_bg:
 
     ; PPU attribute table - $23c0
     ldx #$00
-    ; uncompressed ppu attributes
-; -   lda ppu_attr,x
-;     sta PPUDATA
-;     inx
-;     cpx #$40
-;     bne -
-    ; compressed ppu attributes
---  ldy ppu_attr_sm,x
+    
+--  ldy ppu_attr_sm,x ; compressed ppu attributes
     beq +
     inx
     lda ppu_attr_sm,x
@@ -613,6 +618,12 @@ prepare_laser:
     clc
     adc PLAYERX ; get the X position
     adc SCROLLX
+    bcc +
+    inc LASER_ADDR+1
+    inc LASER_ADDR+1
+    inc LASER_ADDR+1
+    inc LASER_ADDR+1
++
     lsr         ; divide by 8 to get the horizontal position
     lsr
     lsr
@@ -625,20 +636,8 @@ prepare_laser:
     lsr
     lsr
     tax
-    dex
+    inx
     stx LASER_LEN
-;     lda LASER_ADDR+1
-;     sta PPUADDR
-;     lda LASER_ADDR
-;     sta PPUADDR
-; -   lda PPUDATA
-;     sta $300,x
-;     dex
-;     bne -
-;     lda #$20
-;     sta PPUADDR
-;     lda #$00
-;     sta PPUADDR
     rts
 
 draw_laser:
@@ -693,6 +692,7 @@ clear_laser:
 fix_clear_laser_ppu_addr:
     pha
     lda CLR_LSR_ADDR+1
+    eor #4
     sta PPUADDR
     lda CLR_LSR_ADDR
     and #$E0
@@ -703,6 +703,7 @@ fix_clear_laser_ppu_addr:
 fix_laser_ppu_addr:
     pha
     lda LASER_ADDR+1
+    eor #4
     sta PPUADDR
     lda LASER_ADDR
     and #$E0
@@ -883,10 +884,10 @@ IFDEF DEBUG
 ;     jsr show_mem
     lda PLAYERX
     jsr show_mem
-;     lda SCROLLX
-;     jsr show_mem
-    lda PLAYERY
+    lda SCROLLX
     jsr show_mem
+;     lda PLAYERY
+;     jsr show_mem
     lda HEAT
     jsr show_mem
 ;     lda GROUND_Y

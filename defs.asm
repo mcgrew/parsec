@@ -6,11 +6,11 @@ FILLVALUE $ff
 .db "NES", $1a
 .db 2  ; PRG ROM banks
 .db 1  ; CHR ROM banks
-.db $00 ; No Mapper
-.db 0
-.db 0
-.db 0
-.db 0
+.db $01 ; No Mapper, vertical mirroring
+.db $00
+.db $00
+.db $00
+.db $00
 .db 0,0,0,0,0
 
 ; *** MMIO ***
